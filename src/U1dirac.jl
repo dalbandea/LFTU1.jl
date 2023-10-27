@@ -31,10 +31,10 @@ end
 
 function gamm5Dw!(so, si, U1ws::U1Nf2)
     lp = U1ws.params
-    event = U1gamm5Dw!(U1ws.device)(so, U1ws.U, si, lp.am0, lp.iL[1],
+    U1gamm5Dw!(U1ws.device)(so, U1ws.U, si, lp.am0, lp.iL[1],
                                   lp.iL[2], ndrange=(lp.iL[1], lp.iL[2]),
                                   workgroupsize=U1ws.kprm.threads)
-    wait(event)
+    synchronize(U1ws.device)
     return nothing
 end
 
@@ -175,11 +175,11 @@ end
 
 function pf_force!(U1ws::U1Nf2, hmcws::AbstractHMC)
     lp = U1ws.params
-    event = U1_tr_dQwdU!(U1ws.device)(hmcws.pfrc, U1ws.U, hmcws.X, hmcws.g5DX,
+    U1_tr_dQwdU!(U1ws.device)(hmcws.pfrc, U1ws.U, hmcws.X, hmcws.g5DX,
                                     lp.iL[1], lp.iL[2], 
                                     ndrange=(lp.iL[1], lp.iL[2]),
                                     workgroupsize=U1ws.kprm.threads)
-    wait(event)
+    synchronize(U1ws.device)
     return nothing
 end
 

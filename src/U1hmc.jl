@@ -24,8 +24,8 @@ end
 
 function generate_momenta!(U1ws::U1, hmcws::AbstractHMC)
     lp = U1ws.params
-    event = U1generate_momenta!(U1ws.device)(hmcws.mom, lp.iL[1], lp.iL[2], lp.BC, ndrange=(lp.iL[1], lp.iL[2]), workgroupsize=U1ws.kprm.threads)
-    wait(event)
+    U1generate_momenta!(U1ws.device)(hmcws.mom, lp.iL[1], lp.iL[2], lp.BC, ndrange=(lp.iL[1], lp.iL[2]), workgroupsize=U1ws.kprm.threads)
+    synchronize(U1ws.device)
     return nothing
 end
 
@@ -42,8 +42,8 @@ end
 
 function update_fields!(U1ws::T, epsilon, hmcws::AbstractHMC) where T <: U1
     lp = U1ws.params
-    event = U1_update_field!(U1ws.device)(U1ws.U, hmcws.mom, epsilon, ndrange=(lp.iL[1], lp.iL[2]), workgroupsize=U1ws.kprm.threads)
-    wait(event)
+    U1_update_field!(U1ws.device)(U1ws.U, hmcws.mom, epsilon, ndrange=(lp.iL[1], lp.iL[2]), workgroupsize=U1ws.kprm.threads)
+    synchronize(U1ws.device)
     return nothing
 end
 

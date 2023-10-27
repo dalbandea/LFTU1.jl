@@ -1,6 +1,7 @@
 using LFTSampling
 using LFTU1
 using LinearAlgebra
+using CUDAKernels: CUDADevice
 
 
 import LFTSampling: analytic_force, infinitesimal_transformation, get_field
@@ -21,7 +22,7 @@ lsize = 8
 beta = 5.0
 mass = 0.6
 
-model = LFTU1.U1Nf2(Float64, iL = (lsize, lsize), beta = beta, am0 = mass, BC = PeriodicBC)
+model = LFTU1.U1Nf2(Float64, iL = (lsize, lsize), beta = beta, am0 = mass, BC = PeriodicBC, device = CUDADevice())
 
 alg = HMC(
           integrator = Leapfrog(1.0, 10),

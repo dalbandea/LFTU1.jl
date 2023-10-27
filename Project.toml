@@ -3,12 +3,6 @@ uuid = "c5346ad7-8abe-4d7d-905f-653b6e0abc8c"
 authors = ["dalbandea <albandeadavid@gmail.com>"]
 version = "0.1.0"
 
-[weakdeps]
-AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-CUDAKernels = "72cfdca4-0801-4ab0-bf6a-d52aa10adc57"
-ROCKernels = "7eb9e9f0-4bd3-4c4c-8bef-26bd9629d9b9"
-
 [deps]
 BDIO = "375f315e-f2c4-11e9-2ef9-134f02f79e27"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
@@ -16,3 +10,16 @@ LFTSampling = "01beebb5-6b54-40b6-b312-fac6d2d10d07"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[weakdeps]
+AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+CUDAKernels = "72cfdca4-0801-4ab0-bf6a-d52aa10adc57"
+ROCKernels = "7eb9e9f0-4bd3-4c4c-8bef-26bd9629d9b9"
+
+[extensions]
+LFTU1AMD = ["AMDGPU", "ROCKernels"]
+LFTU1CUDA = ["CUDAKernels", "CUDA"]
+
+[targets]
+test = ["CUDAKernels"]

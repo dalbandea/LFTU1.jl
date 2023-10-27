@@ -40,8 +40,8 @@ end
 
 function gauge_force!(U1ws::U1, hmcws::AbstractHMC)
     lp = U1ws.params
-    event = U1quenchedforce!(U1ws.device)(hmcws.frc1, hmcws.frc2, U1ws.U, lp.beta, lp.iL[1], lp.iL[2], lp.BC, ndrange=(lp.iL[1], lp.iL[2]), workgroupsize=U1ws.kprm.threads)
-    wait(event)
+    U1quenchedforce!(U1ws.device)(hmcws.frc1, hmcws.frc2, U1ws.U, lp.beta, lp.iL[1], lp.iL[2], lp.BC, ndrange=(lp.iL[1], lp.iL[2]), workgroupsize=U1ws.kprm.threads)
+    synchronize(U1ws.device)
     return nothing
 end
 
@@ -84,8 +84,8 @@ function U1quenchedaction(U, beta, Nx, Ny, BC, device, threads, blocks)
 end
 
 function U1quenchedaction(plaquettes, U, beta, Nx, Ny, BC, device, threads, blocks)
-    event = U1plaquette!(device)(plaquettes, U, Nx, Ny, BC, ndrange=(Nx, Ny), workgroupsize=threads)
-    wait(event)
+    U1plaquette!(device)(plaquettes, U, Nx, Ny, BC, ndrange=(Nx, Ny), workgroupsize=threads)
+    synchronize(device)
 
     if BC == OpenBC
         Nx = Nx - 1
@@ -107,8 +107,8 @@ function U1topcharge(U, beta, Nx, Ny, device, threads, blocks)
 end
 
 function U1topcharge(plaquettes, U, beta, Nx, Ny, device, threads, blocks)
-    event = U1qtop!(device)(plaquettes, U, Nx, Ny, ndrange=(Nx, Ny), workgroupsize=threads)
-    wait(event)
+    U1qtop!(device)(plaquettes, U, Nx, Ny, ndrange=(Nx, Ny), workgroupsize=threads)
+    synchronize(device)
     Q = reduce(+, plaquettes) / (2.0*pi)
     return Q
 end

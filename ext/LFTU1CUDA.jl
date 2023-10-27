@@ -1,5 +1,6 @@
 module LFTU1CUDA
 
+using LFTU1
 import CUDA, CUDAKernels
 
 to_device(::CUDAKernels.CUDADevice, x) = CUDA.CuArray(x)

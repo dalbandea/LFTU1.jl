@@ -1,5 +1,6 @@
 module LFTU1AMD
 
+using LFTU1
 import AMDGPU, ROCKernels
 
 to_device(::ROCKernels.ROCDevice, x) = AMDGPU.ROCArray(x)
