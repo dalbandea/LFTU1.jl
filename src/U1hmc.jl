@@ -36,7 +36,7 @@ end
 # end
 
 function Hamiltonian(U1ws::U1, hmcws::AbstractHMC)
-    H = mapreduce(x -> x^2, +, hmcws.mom)/2.0 + action(U1ws, hmcws)
+    H = mapreduce(x -> x^2, +, hmcws.mom)/2.0 + real(action(U1ws, hmcws))
     return H
 end
 

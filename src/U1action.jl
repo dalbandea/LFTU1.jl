@@ -7,10 +7,10 @@ KernelAbstractions.@kernel function U1plaquette!(plx, U, Nx, Ny, ::Type{BC}) whe
     iu1 = mod(i1, Nx) + 1
     iu2 = mod(i2, Ny) + 1
     
-    plx[i1,i2] = real(U[i1,i2,1] *
-                      U[iu1,i2,2] *
-                      conj(U[i1,iu2,1] *
-                           U[i1,i2,2]))
+    plx[i1,i2] = cos(-im*log(U[i1,i2,1] *
+                             U[iu1,i2,2] *
+                             conj(U[i1,iu2,1]) *
+                             conj(U[i1,i2,2])))
 
     if BC == OpenBC
         if i1 == Nx || i2 == Ny
@@ -79,7 +79,7 @@ function U1quenchedaction(U1ws::U1)
 end
 
 function U1quenchedaction(U, beta, Nx, Ny, BC, device, threads, blocks)
-    plaquettes = to_device(device, zeros(real(eltype(U)), Nx, Ny))
+    plaquettes = to_device(device, zeros(eltype(U), Nx, Ny))
     return U1quenchedaction(plaquettes, U, beta, Nx, Ny, BC, device, threads, blocks)
 end
 
