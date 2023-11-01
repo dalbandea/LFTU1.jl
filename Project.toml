@@ -4,6 +4,7 @@ authors = ["dalbandea <albandeadavid@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 BDIO = "375f315e-f2c4-11e9-2ef9-134f02f79e27"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 LFTSampling = "01beebb5-6b54-40b6-b312-fac6d2d10d07"
