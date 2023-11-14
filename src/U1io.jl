@@ -1,4 +1,5 @@
 import BDIO: BDIO_write!, BDIO_read
+import LFTSampling: save_cnfg_header, read_cnfg_info
 
 function BDIO.BDIO_write!(fb::BDIO.BDIOstream, u1ws::U1)
     for mu in 1:2, iy in 1:u1ws.params.iL[2], ix in 1:u1ws.params.iL[1]
@@ -21,40 +22,7 @@ function BDIO.BDIO_read(fb::BDIO.BDIOstream, u1ws::U1)
     BDIO.BDIO_read(fb, u1ws, reg)
 end
 
-"""
-    read_next_cnfg(fb::BDIO.BDIOstream, u1ws::U1)
-
-reads next configuration of BDIO handle `fb` and stores it into `u1ws.U`.
-"""
-function read_next_cnfg(fb::BDIO.BDIOstream, u1ws::U1)
-    while BDIO.BDIO_get_uinfo(fb) != 8
-        BDIO.BDIO_seek!(fb)
-    end
-    BDIO.BDIO_read(fb, u1ws)
-end
-
-"""
-    save_cnfg(fname::String, u1ws::U1)
-
-saves model instance `u1ws` to BDIO file `fname`. If file does not exist, it creates one and stores the info in `u1ws.params`, and then saves the configuration. If it does exist, it appends the configuration to the existing file.
-"""
-function save_cnfg(fname::String, u1ws::U1)
-    if isfile(fname)
-        fb = BDIO.BDIO_open(fname, "a")
-    else
-        fb = save_cnfg_header(fname, u1ws)
-    end
-
-    BDIO.BDIO_start_record!(fb, BDIO.BDIO_BIN_F64LE, 8, true)
-    BDIO.BDIO_write!(fb,u1ws)
-    BDIO.BDIO_write_hash!(fb)
-    BDIO.BDIO_close!(fb)
-end
-
-function save_cnfg_header(fname::String, u1ws::U1Quenched)
-        fb = BDIO.BDIO_open(fname, "w", "U1 Configurations")
-
-        BDIO.BDIO_start_record!(fb, BDIO.BDIO_BIN_GENERIC, 1)
+function save_cnfg_header(fb::BDIO.BDIOstream, u1ws::U1Quenched)
         if u1ws.params.BC == PeriodicBC
             BC = 0
         elseif u1ws.params.BC == OpenBC
@@ -63,14 +31,10 @@ function save_cnfg_header(fname::String, u1ws::U1Quenched)
         BDIO.BDIO_write!(fb, [u1ws.params.beta])
         BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[1])])
         BDIO.BDIO_write!(fb, [convert(Int32, BC)])
-        BDIO.BDIO_write_hash!(fb)
-        return fb
+        return nothing
 end
 
-function save_cnfg_header(fname::String, u1ws::U1Nf2)
-        fb = BDIO.BDIO_open(fname, "w", "U1 Configurations")
-
-        BDIO.BDIO_start_record!(fb, BDIO.BDIO_BIN_GENERIC, 1)
+function save_cnfg_header(fb::BDIO.BDIOstream, u1ws::U1Nf2)
         if u1ws.params.BC == PeriodicBC
             BC = 0
         elseif u1ws.params.BC == OpenBC
@@ -80,8 +44,7 @@ function save_cnfg_header(fname::String, u1ws::U1Nf2)
         BDIO.BDIO_write!(fb, [u1ws.params.am0])
         BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[1])])
         BDIO.BDIO_write!(fb, [convert(Int32, BC)])
-        BDIO.BDIO_write_hash!(fb)
-        return fb
+        return nothing
 end
 
 """
