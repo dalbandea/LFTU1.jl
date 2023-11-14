@@ -209,8 +209,8 @@ uuid = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 version = "0.8.6"
 
 [[deps.LFTSampling]]
-deps = ["Distributions", "Git", "LinearAlgebra", "Random"]
-git-tree-sha1 = "7e1b3bc58f7ed6b2bdd1ee88b92daf4c51406bd7"
+deps = ["BDIO", "Distributions", "Git", "LinearAlgebra", "Random"]
+git-tree-sha1 = "759c2351d01e00fc32839a33b9b07e801107d203"
 repo-rev = "main"
 repo-url = "https://github.com/dalbandea/LFTSampling.jl"
 uuid = "01beebb5-6b54-40b6-b312-fac6d2d10d07"
