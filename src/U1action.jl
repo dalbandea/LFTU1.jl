@@ -7,16 +7,21 @@ KernelAbstractions.@kernel function U1plaquette!(plx, U, Nx, Ny, ::Type{BC}) whe
     iu1 = mod(i1, Nx) + 1
     iu2 = mod(i2, Ny) + 1
     
-    plx[i1,i2] = cos(-im*log(U[i1,i2,1] *
+    # plx[i1,i2] = cos(-im*log(U[i1,i2,1] *
+    #                          U[iu1,i2,2] *
+    #                          conj(U[i1,iu2,1]) *
+    #                          conj(U[i1,i2,2])))
+
+    plx[i1,i2] = real(U[i1,i2,1] *
                              U[iu1,i2,2] *
                              conj(U[i1,iu2,1]) *
-                             conj(U[i1,i2,2])))
+                             conj(U[i1,i2,2]))
 
-    if BC == OpenBC
-        if i1 == Nx || i2 == Ny
-            plx[i1, i2] = zero(eltype(plx))
-        end
-    end
+    # if BC == OpenBC
+    #     if i1 == Nx || i2 == Ny
+    #         plx[i1, i2] = zero(eltype(plx))
+    #     end
+    # end
     
 end
 
