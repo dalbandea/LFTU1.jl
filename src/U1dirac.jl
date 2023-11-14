@@ -11,16 +11,21 @@ KernelAbstractions.@kernel function U1gamm5Dw!(so, U, si, am0, Nx, Ny)
     id2 = mod1(i2-1, Ny)
 
     A = 0.5 * ( U[i1,i2,1] * (si[iu1,i2,1] - si[iu1,i2,2]) +
-                conj(U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
+                # conj(U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
+                ((id1 == Nx && U[id1,i2,1] == zero(eltype(U)) ) ? 0.0 : 1 / U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
     B = 0.5 * ( U[i1,i2,2] * (si[i1,iu2,1] +
                               complex(-imag(si[i1,iu2,2]),real(si[i1,iu2,2]))) +
-                conj(U[i1,id2,2])*(si[i1,id2,1] +
+                # conj(U[i1,id2,2])*(si[i1,id2,1] +
+                                    # complex(imag(si[i1,id2,2]),-real(si[i1,id2,2]))) )
+                                    ( (id2 == Ny && U[i1,id2,2] == zero(eltype(U))) ? 0.0 : 1 / U[i1,id2,2]) *(si[i1,id2,1] +
                                     complex(imag(si[i1,id2,2]),-real(si[i1,id2,2]))) )
     A2 = 0.5 * ( U[i1,i2,1] * (si[iu1,i2,1] - si[iu1,i2,2]) -
-                conj(U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
+                # conj(U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
+                ((id1 == Nx && U[id1,i2,1] == zero(eltype(U))) ? 0.0 : 1 / U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
     B2 = 0.5 * ( U[i1,i2,2] * (-si[i1,iu2,2] +
                               complex(-imag(si[i1,iu2,1]),real(si[i1,iu2,1]))) -
-                conj(U[i1,id2,2])*(si[i1,id2,2] +
+                # conj(U[i1,id2,2])*(si[i1,id2,2] +
+                ((id2 == Ny && U[i1,id2,2] == zero(eltype(U))) ? 0.0 : 1 / U[i1,id2,2])*(si[i1,id2,2] +
                                     complex(-imag(si[i1,id2,1]),real(si[i1,id2,1]))) )
 
     

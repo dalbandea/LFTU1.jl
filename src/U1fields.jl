@@ -11,11 +11,19 @@ end
 
 function randomize!(U1ws::U1)
     U1ws.U .= to_device(U1ws.device, exp.(im * Random.rand(U1ws.PRC, size(U1ws.U)) * 2 * pi))
+    if U1ws.params.BC == OpenBC
+        U1ws.U[U1ws.params.iL[1], :, 1] .= 0.0
+        U1ws.U[:, U1ws.params.iL[2], 2] .= 0.0
+    end
     return nothing
 end
 
 function coldstart!(U1ws::U1)
     U1ws.U .= one(complex(U1ws.PRC))
+    if U1ws.params.BC == OpenBC
+        U1ws.U[U1ws.params.iL[1], :, 1] .= 0.0
+        U1ws.U[:, U1ws.params.iL[2], 2] .= 0.0
+    end
     return nothing
 end
 
@@ -50,6 +58,10 @@ function U1quenchedworkspace(::Type{T1}, ::Type{T2}, lp::U1Parm, device, kprm; c
         U = to_device(device, ones(T2, lp.iL..., 2))
     else
         U = custom_init
+    end
+    if lp.BC == OpenBC
+        U[lp.iL[1], :, 1] .= 0.0
+        U[:, lp.iL[2], 2] .= 0.0
     end
     return U1quenchedworkspace{T1, typeof(U)}(T1, U, lp, device, kprm)
 end
