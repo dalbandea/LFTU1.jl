@@ -16,7 +16,7 @@ KernelAbstractions.@kernel function U1gamm5Dw!(so, U, si, am0, Nx, Ny)
     B = 0.5 * ( U[i1,i2,2] * (si[i1,iu2,1] +
                               complex(-imag(si[i1,iu2,2]),real(si[i1,iu2,2]))) +
                 # conj(U[i1,id2,2])*(si[i1,id2,1] +
-                                    # complex(imag(si[i1,id2,2]),-real(si[i1,id2,2]))) )
+                #                     complex(imag(si[i1,id2,2]),-real(si[i1,id2,2]))) )
                                     ( (id2 == Ny && U[i1,id2,2] == zero(eltype(U))) ? 0.0 : 1 / U[i1,id2,2]) *(si[i1,id2,1] +
                                     complex(imag(si[i1,id2,2]),-real(si[i1,id2,2]))) )
     A2 = 0.5 * ( U[i1,i2,1] * (si[iu1,i2,1] - si[iu1,i2,2]) -
@@ -50,6 +50,73 @@ function gamm5Dw_sqr_msq!(so, tmp, si, U1ws::U1Nf2)
     tmp .= so
     gamm5Dw!(so, tmp, U1ws)
     # so .= so .+ (am0^2)
+    
+    return nothing
+end
+
+
+"""
+   (kernel) gamm5(so, si, am0, prm::LattParm)
+
+Apply γ₅ to a fermion field. `si` is the input fermion field, and `so` the output.
+
+# Examples
+```jldoctest
+julia> CUDA.@cuda threads=kprm.threads blocks=kprm.blocks gamm5(si, so, am0, prm)
+```
+"""
+KernelAbstractions.@kernel function U1gamm5!(so, si, Nx, Ny)
+
+    i1, i2 = @index(Global, NTuple)
+
+    so[i1,i2,1] =  si[i1,i2,1]
+    so[i1,i2,2] =  -si[i1,i2,2]
+end
+
+function gamm5!(so, si, U1ws::U1Nf2)
+    lp = U1ws.params
+    event = U1gamm5!(U1ws.device)(so, si, lp.iL[1],
+                                  lp.iL[2], ndrange=(lp.iL[1], lp.iL[2]),
+                                  workgroupsize=U1ws.kprm.threads)
+    wait(event)
+    return nothing
+end
+
+
+"""
+    Dw(so, si, U1ws::U1Nf2)
+
+Applies γ₅(γ₅D) = D to a fermion field `si` and writes it to `so`.
+
+# Examples
+julia> Dw(so, si, U1ws)
+"""
+function Dw!(so, si, U1ws::U1Nf2)
+
+    tmp = similar(si)
+    Dw!(so, tmp, si, U1ws)
+
+    return nothing
+end
+
+function Dw!(so, tmp, si, U1ws::U1Nf2)
+
+    gamm5Dw!(so, si, U1ws)
+    tmp .= so
+    gamm5!(so, tmp, U1ws)
+
+    return nothing
+end
+
+function Dw_sqr_msq!(so, tmp, si, U1ws::U1Nf2)
+
+    gamm5Dw!(so, si, U1ws)
+    tmp .= so
+    gamm5!(so, tmp, U1ws)
+    tmp .= so
+    gamm5Dw!(so, tmp, U1ws)
+    tmp .= so
+    gamm5!(so, tmp, U1ws)
     
     return nothing
 end
@@ -126,56 +193,8 @@ end
 # end
 
 
-# """
-#    (kernel) gamm5(so, si, am0, prm::LattParm)
-
-# Apply γ₅ to a fermion field. `si` is the input fermion field, and `so` the output.
-
-# # Examples
-# ```jldoctest
-# julia> CUDA.@cuda threads=kprm.threads blocks=kprm.blocks gamm5(si, so, am0, prm)
-# ```
-# """
-# function gamm5(so, si, am0, prm::LattParm)
-
-#     i1 = (CUDA.blockIdx().x - 1) * CUDA.blockDim().x + CUDA.threadIdx().x
-#     i2 = (CUDA.blockIdx().y - 1) * CUDA.blockDim().y + CUDA.threadIdx().y
-
-#     iu1 = mod(i1, prm.iL[1]) + 1
-#     iu2 = mod(i2, prm.iL[2]) + 1
-
-#     id1 = mod1(i1-1, prm.iL[1])
-#     id2 = mod1(i2-1, prm.iL[2])
-
-#     so[i1,i2,1] =  si[i1,i2,1]
-#     so[i1,i2,2] =  -si[i1,i2,2]
-    
-
-#     return nothing
-# end
 
 
-# """
-# Dw(so, U, si, am0, prm, kprm)
-
-# Applies γ₅(γ₅D) = D to a fermion field `si` and writes it to `so`.
-
-# # Examples
-# julia> Dw(so, U, si, am0, prm, kprm)
-# """
-# function Dw(so, U, si, am0::Float64, prm::LattParm, kprm::KernelParm)
-
-#     tmp = similar(si)
-#     CUDA.@sync begin
-#         CUDA.@cuda threads=kprm.threads blocks=kprm.blocks gamm5Dw(so, U, si, am0, prm)
-#     end
-#     tmp .= so
-#     CUDA.@sync begin
-#         CUDA.@cuda threads=kprm.threads blocks=kprm.blocks gamm5(so, tmp, am0, prm)
-#     end
-    
-#     return nothing
-# end
 
 
 function pf_force!(U1ws::U1Nf2, hmcws::AbstractHMC)

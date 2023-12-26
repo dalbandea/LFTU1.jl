@@ -56,7 +56,7 @@ export Hamiltonian, generate_momenta!, update_fields!, U1_update_field!, update_
 include("U1io.jl")
 
 include("U1dirac.jl")
-export gamm5Dw!, gamm5Dw_sqr_msq!
+export gamm5Dw!, gamm5Dw_sqr_msq!, Dw!, gamm5!, Dw_sqr_msq!
 
 # to_device(::CUDAKernels.CUDADevice, x) = CUDA.CuArray(x)
 # to_device(::ROCKernels.ROCDevice, x) = AMDGPU.ROCArray(x)
