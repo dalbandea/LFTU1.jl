@@ -31,6 +31,7 @@ function save_cnfg_header(fb::BDIO.BDIOstream, u1ws::U1Quenched)
     end
     BDIO.BDIO_write!(fb, [u1ws.params.beta])
     BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[1])])
+    BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[2])])
     BDIO.BDIO_write!(fb, [convert(Int32, BC)])
     BDIO.BDIO_write_hash!(fb)
     return nothing
@@ -69,10 +70,11 @@ function read_cnfg_info(fname::String, ::Type{U1Quenched})
     ifoo    = Vector{Float64}(undef, 1)
     BDIO.BDIO_read(fb, ifoo)
     beta    = ifoo[1]
-    ifoo    = Vector{Int32}(undef, 2)
+    ifoo    = Vector{Int32}(undef, 3)
     BDIO.BDIO_read(fb, ifoo)
-    lsize   = convert(Int64, ifoo[1])
-    BC      = convert(Int64, ifoo[2])
+    lsize1   = convert(Int64, ifoo[1])
+    lsize2   = convert(Int64, ifoo[2])
+    BC      = convert(Int64, ifoo[3])
 
     if BC == 0
         BCt = PeriodicBC
@@ -82,7 +84,7 @@ function read_cnfg_info(fname::String, ::Type{U1Quenched})
 
     model = U1Quenched(Float64,
                        beta = beta,
-                       iL = (lsize, lsize),
+                       iL = (lsize1, lsize2),
                        BC = BCt,
                       )
 
@@ -135,6 +137,7 @@ function save_cnfg_header(fb::BDIO.BDIOstream, u1ws::U1Nf)
     BDIO.BDIO_write!(fb, [convert(Int32, length(u1ws.params.am0))])
     BDIO.BDIO_write!(fb, u1ws.params.am0)
     BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[1])])
+    BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[2])])
     BDIO.BDIO_write!(fb, [convert(Int32, BC)])
     BDIO.BDIO_write_hash!(fb)
     return nothing
@@ -156,10 +159,11 @@ function read_cnfg_info(fname::String, ::Type{U1Nf})
     N_fermions = convert(Int64, ifoo[1])
     masses  = Vector{Float64}(undef, N_fermions)
     BDIO.BDIO_read(fb, masses)
-    ifoo    = Vector{Int32}(undef, 2)
+    ifoo    = Vector{Int32}(undef, 3)
     BDIO.BDIO_read(fb, ifoo)
-    lsize   = convert(Int64, ifoo[1])
-    BC      = convert(Int64, ifoo[2])
+    lsize1   = convert(Int64, ifoo[1])
+    lsize2   = convert(Int64, ifoo[2])
+    BC      = convert(Int64, ifoo[3])
 
     if BC == 0
         BCt = PeriodicBC
@@ -170,7 +174,7 @@ function read_cnfg_info(fname::String, ::Type{U1Nf})
     model = U1Nf(Float64,
                        beta = beta,
                        am0 = masses,
-                       iL = (lsize, lsize),
+                       iL = (lsize1, lsize2),
                        BC = BCt,
                       )
 

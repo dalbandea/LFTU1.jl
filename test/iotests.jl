@@ -3,11 +3,12 @@ using LFTU1
 let
 
     beta = 5.555
-    lsize = 8
+    l1 = 8
+    l2 = 10
 
     model = U1Quenched(Float64,
                        beta = beta,
-                       iL = (lsize, lsize),
+                       iL = (l1, l2),
                        BC = OpenBC,
                       )
     LFTU1.randomize!(model)
@@ -31,7 +32,7 @@ let
 
     model = U1Quenched(Float64,
                        beta = beta,
-                       iL = (lsize, lsize),
+                       iL = (l1, l2),
                        BC = PeriodicBC,
                       )
     LFTU1.randomize!(model)
@@ -92,12 +93,13 @@ let
 
 
     beta = 5.0
-    lsize = 8
+    l1 = 8
+    l2 = 10
     masses = [0.2, 0.2]
     model = U1Nf(Float64,
                   beta = beta,
                   am0 = masses,
-                  iL = (lsize, lsize),
+                  iL = (l1, l2),
                   BC = PeriodicBC,
                  )
     LFTU1.randomize!(model)
