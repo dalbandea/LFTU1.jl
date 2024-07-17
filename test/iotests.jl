@@ -52,14 +52,14 @@ let
     rm(fname, force=true)
 
 
-
     beta = 5.555
-    lsize = 8
+    l1 = 8
+    l2 = 10
     mass = 0.6
     model = U1Nf2(Float64,
                   beta = beta,
                   am0 = mass,
-                  iL = (lsize, lsize),
+                  iL = (l1, l2),
                   BC = PeriodicBC,
                  )
     LFTU1.randomize!(model)
