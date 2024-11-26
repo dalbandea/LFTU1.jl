@@ -346,3 +346,218 @@ function ex_disconnected_correlator(corrws, u1ws, ifl)
     end
 end
 export ex_disconnected_correlator
+
+"""
+Computes all two-to-two correlation functions
+"""
+
+function getId(combs, p1, p2)
+    for i in 1:size(combs,2)
+        if p1 == combs[1,i] && p2 == combs[2,i]
+            return i
+        end
+    end
+end
+export getId
+
+function multiplyPhase(Mmatrix, phase, L)
+    id = 0
+
+    res = zeros(complex(Float64), 2*L, 2*L)
+    for y in 1:L
+        res[1:L, y] =  phase .* Mmatrix[1:L, y]
+        res[L+1:2*L, y] = phase .* Mmatrix[L+1:2*L, y]
+        res[1:L, L+y] = phase .* Mmatrix[1:L, L+y]
+        res[L+1:2*L, L+y] = phase .* Mmatrix[L+1:2*L, L+y]
+    end
+    return res
+end
+export multiplyPhase
+
+function all_correlators1(correlator, g5_correlator, MR, data, u1ws, Pmax, Onum, abspmax, mom_comb, phases)
+    T = u1ws.params.iL[2]
+    L = u1ws.params.iL[1]
+
+    for p in -abspmax:abspmax
+        Threads.@threads for t in 1:T
+            data.Delta[abspmax+p+1,t] = LinearAlgebra.tr(correlator[p+1+abspmax,t,t,:,:])
+            data.Deltas[abspmax+p+1,t] = LinearAlgebra.tr(g5_correlator[p+1+abspmax,t,t,:,:])
+        end
+    end
+
+    for p in 0:abspmax
+        Threads.@threads for t in 0:T-1
+            for t0 in 1:T
+                data.P[p+1, t+1] += sum(transpose(correlator[1+abspmax-p, t0, 1+(t+t0-1) % T, :, :]) .* correlator[1+abspmax+p, 1+(t+t0-1) % T, t0, :, :]) / T
+                data.Ps[p+1, t+1] += sum(transpose(g5_correlator[1+abspmax-p, t0, 1+(t+t0-1) % T, :, :]) .* g5_correlator[1+abspmax+p, 1+(t+t0-1) % T, t0, :, :]) / T
+                data.disc[p+1, t+1] += data.Delta[abspmax-p+1,t0] * data.Delta[abspmax+p+1,1+(t+t0-1) % T] / T
+                data.discs[p+1, t+1] += data.Deltas[abspmax-p+1,t0] * data.Deltas[abspmax+p+1,1+(t+t0-1) % T] / T
+            end
+        end
+    end
+
+    Threads.@threads for P in 0:Pmax
+        for ini in 1:Onum
+            q1 = mom_comb[P+1,ini,1]
+            q2 = mom_comb[P+1,ini,2]
+            for t in 1:T
+                data.Vini[P+1, ini,t] = LinearAlgebra.tr(multiplyPhase(MR[1+abspmax-q2,t,t,:,:],phases[abspmax+1-q1],L))
+                data.Vfin[P+1, ini,t] = LinearAlgebra.tr(multiplyPhase(MR[1+abspmax+q2,t,t,:,:],phases[abspmax+1+q1],L))
+            end
+        end
+    end
+
+    Threads.@threads for P in 0:Pmax
+        id = 1
+        for ini in 1:Onum
+            q1 = mom_comb[P+1,ini,1]
+            q2 = mom_comb[P+1,ini,2] #La simetrización en momento inicial para los triángulosno está implementada bien. Se puede reusar cambiando el significado de los tiempos.
+            for fin in 1:Onum
+                p1 = mom_comb[P+1,fin,1]
+                p2 = mom_comb[P+1,fin,2]
+                for t in 0:T-1
+                    for t0 in 1:T
+                        data.VV[P+1,Onum*(ini-1)+fin, t+1] += data.Vini[P+1, ini, t0] * data.Vfin[P+1, fin, 1+(t+t0-1) % T] / T
+                        data.R[P+1, id, t+1] += sum(transpose(multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) .* multiplyPhase(MR[1+abspmax+p2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+p1],L)) / T
+                    end
+                end
+                id += 1
+
+                if p1 == p2
+                    continue
+                end
+
+                p2 = mom_comb[P+1,fin,1]
+                p1 = mom_comb[P+1,fin,2]
+                for t in 0:T-1
+                    for t0 in 1:T
+                        data.R[P+1, id, t+1] += sum(transpose(multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) .* multiplyPhase(MR[1+abspmax+p2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+p1],L)) / T
+                    end
+                end
+                id += 1
+            end
+        end
+
+        id = 1
+        for op in 1:Onum
+            q1 = mom_comb[P+1,op,1]
+            q2 = mom_comb[P+1,op,2]
+
+            for t in 0:T-1
+                for t0 in 1:T
+                    data.Tsini[P+1, id, t+1] += sum(transpose(g5_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T
+                    data.Tsinidis[P+1, op, t+1] += data.Vfin[P+1, op, 1+(t+t0-1) % T] * data.Deltas[abspmax-P+1,t0] / T
+                    data.Tsfin[P+1, id, t+1] += sum(transpose(g5_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
+                    data.Tsfindis[P+1, op, t+1] += data.Vini[P+1, op, t0] * data.Deltas[abspmax+P+1,1+(t+t0-1) % T] / T
+                end
+            end
+            id += 1
+
+
+            if q1 == q2
+                continue
+            end
+
+            q2 = mom_comb[P+1,op,1]
+            q1 = mom_comb[P+1,op,2]
+
+            for t in 0:T-1
+                for t0 in 1:T
+                    data.Tsini[P+1, id, t+1] += sum(transpose(g5_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T
+                    data.Tsfin[P+1, id, t+1] += sum(transpose(g5_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
+                end
+            end
+            id += 1
+
+        end
+    end
+    return nothing
+end
+export all_correlators1
+
+function all_correlators3(correlator, mIg0_correlator, MR, data, u1ws, Pmax, Onum, abspmax, mom_comb, phases)
+    T = u1ws.params.iL[2]
+    L = u1ws.params.iL[1]
+
+    for p in 0:abspmax
+        Threads.@threads for t in 0:T-1
+            for t0 in 1:T
+                data.Pr[p+1, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-p, t0, 1+(t+t0-1) % T, :, :]) .* mIg0_correlator[1+abspmax+p, 1+(t+t0-1) % T, t0, :, :]) / T
+            end
+        end
+    end
+
+    Threads.@threads for P in 0:Pmax
+        id = 1
+        for op in 1:Onum
+            q1 = mom_comb[P+1,op,1]
+            q2 = mom_comb[P+1,op,2]
+
+            for t in 0:T-1
+                for t0 in 1:T
+                    data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T #The minus sign comes from the dagger operator, as gamma_1 and gamma_0 anticommute
+                    data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
+                end
+            end
+            id += 1
+
+
+            if q1 == q2
+                continue
+            end
+
+            q2 = mom_comb[P+1,op,1]
+            q1 = mom_comb[P+1,op,2]
+
+            for t in 0:T-1
+                for t0 in 1:T
+                    data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T
+                    data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
+                end
+            end
+            id += 1
+
+        end
+    end
+    return nothing
+end
+export all_correlators3
+
+function all_correlators2(MC, data, u1ws, Pmax, Onum, abspmax, mom_comb, phases)
+    T = u1ws.params.iL[2]
+    L = u1ws.params.iL[1]
+
+    Threads.@threads for P in 0:Pmax
+        id = 1
+        for ini in 1:Onum
+            q1 = mom_comb[P+1,ini,1]
+            q2 = mom_comb[P+1,ini,2] #La simetrización en momento inicial para los triángulosno está implementada bien. Se puede reusar cambiando el significado de los tiempos.
+            for fin in 1:Onum
+                p1 = mom_comb[P+1,fin,1]
+                p2 = mom_comb[P+1,fin,2]
+                for t in 0:T-1
+                    for t0 in 1:T
+                        data.D[P+1,id, t+1] += LinearAlgebra.tr(multiplyPhase(MC[1+abspmax-q1,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1+p1],L)) * LinearAlgebra.tr(multiplyPhase(MC[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1+p2],L)) / T
+                        data.C[P+1, id, t+1] += sum(transpose(multiplyPhase(MC[1+abspmax-q1,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1+p1],L)) .* multiplyPhase(MC[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1+p2],L)) / T
+                    end
+                end
+                id += 1
+                if p1 == p2
+                    continue
+                end
+
+                p2 = mom_comb[P+1,fin,1]
+                p1 = mom_comb[P+1,fin,2]
+                Threads.@threads for t in 0:T-1
+                    for t0 in 1:T
+                        data.D[P+1,id, t+1] += LinearAlgebra.tr(multiplyPhase(MC[1+abspmax-q1,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1+p1],L)) * LinearAlgebra.tr(multiplyPhase(MC[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1+p2],L)) / T
+                        data.C[P+1, id, t+1] += sum(transpose(multiplyPhase(MC[1+abspmax-q1,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1+p1],L)) .* multiplyPhase(MC[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1+p2],L)) / T
+                    end
+                end
+                id += 1
+            end
+        end
+    end
+    return nothing
+end
+export all_correlators2
