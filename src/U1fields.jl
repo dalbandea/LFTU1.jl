@@ -19,6 +19,44 @@ function coldstart!(U1ws::U1)
     return nothing
 end
 
+function gauge_transformation(U1ws::U1)
+
+    return nothing
+end
+
+function winding(Lw, U1ws::U1; sign = 1)
+    sign == 1 || sign == -1 || Base.error("Sign of winding must be +1 or -1.")
+
+    # pos = Int64(floor(lsize*lsize*rand()))
+    pos = 1
+
+    x1  = Int64(floor((pos-1)/lsize)) +1
+    x2  = mod1(pos, lsize)
+
+    phase = zeros(ComplexF64, Lw+1, Lw+1)
+
+    for i in 1:Lw+1
+        phase[1, i] = (i-1)*pi/(2*Lw)
+        phase[Lw+1, i] = 3*pi/2 - (i-1)*pi/(2*Lw);
+        phase[i, 1] = 2*pi - (i-1)*pi/(2*Lw);
+        phase[i, Lw+1] = pi/2 + (i-1)*pi/(2*Lw);
+    end
+    phase[1, 1] = 2*pi;
+
+    Omega = exp.(sign*im*phase)
+
+    for i in 1:Lw, j in 1:Lw
+        U1ws.U[i,j,1] = Omega[i,j] * U1ws.U[i,j,1] * conj(Omega[i+1,j])
+        U1ws.U[i,j,2] = Omega[i,j] * U1ws.U[i,j,2] * conj(Omega[i,j+1])
+    end
+    for i in 1:Lw
+        U1ws.U[i,Lw+1,1] = Omega[i,Lw+1] * U1ws.U[i,Lw+1,1] * conj(Omega[i+1,Lw+1])
+        U1ws.U[Lw+1,i,2] = Omega[Lw+1,i] * U1ws.U[Lw+1,i,2] * conj(Omega[Lw+1,i+1])
+    end
+
+    return nothing
+end
+
 # ======================= #
 # ===== U1 Quenched ===== #
 # ======================= #
