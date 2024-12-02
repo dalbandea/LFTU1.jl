@@ -71,7 +71,7 @@ export RHMCParm
 
 
 include("U1fields.jl")
-export U1quenchedworkspace, U1Nf2workspace, U1Nfworkspace, coldstart!, randomize!
+export U1quenchedworkspace, U1Nf2workspace, U1Nfworkspace, coldstart!, randomize!, random_gauge_trafo
 
 include("U1action.jl")
 export action, U1plaquette!, U1action, gauge_action, top_charge
