@@ -2,11 +2,12 @@ using LinearAlgebra
 
 let
     # U1 Theory parameters
-    lsize = 8
+    lsize1 = 8
+    lsize2 = 10
     beta = 5.0
     mass = 0.6
 
-    model = LFTU1.U1Nf2(Float64, iL = (lsize, lsize), beta = beta, am0 = mass, BC = PeriodicBC)
+    model = LFTU1.U1Nf2(Float64, iL = (lsize1, lsize2), beta = beta, am0 = mass, BC = PeriodicBC)
 
     LFTU1.randomize!(model)
 
