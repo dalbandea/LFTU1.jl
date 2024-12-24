@@ -10,6 +10,7 @@ using Dates
 import LinearAlgebra
 using ArgParse
 using Distributed
+using TOML
 
 parse_commandline() = parse_commandline(ARGS)
 function parse_commandline(args)
@@ -57,16 +58,26 @@ end
 return parse_args(args, s)
 end
 
-args = [
-    "-L", "48",
-    "-T", "48",
-    "--ens", "Tests/Nf2sim-b5.0-L48-T48-m-0.03_D2024-11-11-10-09-44.301/Nf2sim-b5.0-L48-T48-m-0.03_D2024-11-11-10-09-44.301.bdio",
-    "--start", "1",
-    "--nconf", "1",
-    "--Pmax", "0",
-    "--Onum", "2",
-    ]
-parsed_args = parse_commandline(args)
+length(ARGS) == 1 || error("Only one argument is expected! (Path to input file)")
+isfile(ARGS[1]) || error("Path provided is not a file")
+
+if length(ARGS) == 1
+    infile = ARGS[1]
+else
+    infile = "main/Nf2/infile.in"
+end
+parsed_args = TOML.parsefile(infile)
+
+# args = [
+#     "-L", "48",
+#     "-T", "48",
+#     "--ens", "Tests/Nf2sim-b5.0-L48-T48-m-0.03_D2024-11-11-10-09-44.301/Nf2sim-b5.0-L48-T48-m-0.03_D2024-11-11-10-09-44.301.bdio",
+#     "--start", "1",
+#     "--nconf", "1",
+#     "--Pmax", "0",
+#     "--Onum", "2",
+#     ]
+# parsed_args = parse_commandline(args)
 
 const NFL = 2
 const NL0 = parsed_args["L"]
@@ -271,24 +282,24 @@ function computeTwoPionCorrelationFunction(data::Data, corrws::U1exCorrelator, u
     return nothing
 end
 
-function save_data(data::Data, dirpath)
+function save_data(data::Data, dirpath, start)
 
     for p in -abspmax:abspmax
-        deltafile = joinpath(dirpath, "measurements/exdelta_$(p)_confs$start-$finish.txt")
+        deltafile = joinpath(dirpath, "measurements$(start)/exdelta_$(p)_confs$start-$finish.txt")
         write_vector(data.Delta[abspmax+p+1,:],deltafile)
-        deltasfile = joinpath(dirpath, "measurements/exdeltas_$(p)_confs$start-$finish.txt")
+        deltasfile = joinpath(dirpath, "measurements$(start)/exdeltas_$(p)_confs$start-$finish.txt")
         write_vector(data.Deltas[abspmax+p+1,:],deltasfile)
     end
     for p in 0:abspmax
-        connfile = joinpath(dirpath,"measurements/exconn_$(p)_confs$start-$finish.txt")
+        connfile = joinpath(dirpath,"measurements$(start)/exconn_$(p)_confs$start-$finish.txt")
         write_vector(data.P[p+1,:],connfile)
-        connfiler = joinpath(dirpath,"measurements/exconn_rho_$(p)_confs$start-$finish.txt")
+        connfiler = joinpath(dirpath,"measurements$(start)/exconn_rho_$(p)_confs$start-$finish.txt")
         write_vector(data.Pr[p+1,:],connfiler)
-        connfiles = joinpath(dirpath,"measurements/exconn_sigma_$(p)_confs$start-$finish.txt")
+        connfiles = joinpath(dirpath,"measurements$(start)/exconn_sigma_$(p)_confs$start-$finish.txt")
         write_vector(data.Ps[p+1,:],connfiles)
-        discfile = joinpath(dirpath, "measurements/exdisc_$(p)_confs$start-$finish.txt")
+        discfile = joinpath(dirpath, "measurements$(start)/exdisc_$(p)_confs$start-$finish.txt")
         write_vector(data.disc[p+1,:],discfile)
-        discfiles = joinpath(dirpath, "measurements/exdisc_sigma_$(p)_confs$start-$finish.txt")
+        discfiles = joinpath(dirpath, "measurements$(start)/exdisc_sigma_$(p)_confs$start-$finish.txt")
         write_vector(data.discs[p+1,:],discfiles)
     end
 
@@ -301,10 +312,10 @@ function save_data(data::Data, dirpath)
                 p1 = mom_comb[P+1,fin,1]
                 p2 = mom_comb[P+1,fin,2]
 
-                Dfile = joinpath(dirpath, "measurements/exD_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                VVfile = joinpath(dirpath, "measurements/exVV_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                Cfile = joinpath(dirpath, "measurements/exC_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                Rfile = joinpath(dirpath, "measurements/exR_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
+                Dfile = joinpath(dirpath, "measurements$(start)/exD_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
+                VVfile = joinpath(dirpath, "measurements$(start)/exVV_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
+                Cfile = joinpath(dirpath, "measurements$(start)/exC_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
+                Rfile = joinpath(dirpath, "measurements$(start)/exR_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
 
                 write_vector(data.R[P+1, id, :],Rfile)
                 write_vector(data.C[P+1, id, :],Cfile)
@@ -319,9 +330,9 @@ function save_data(data::Data, dirpath)
                 p2 = mom_comb[P+1,fin,1]
                 p1 = mom_comb[P+1,fin,2]
 
-                Dfile = joinpath(dirpath, "measurements/exD_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                Cfile = joinpath(dirpath, "measurements/exC_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                Rfile = joinpath(dirpath, "measurements/exR_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
+                Dfile = joinpath(dirpath, "measurements$(start)/exD_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
+                Cfile = joinpath(dirpath, "measurements$(start)/exC_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
+                Rfile = joinpath(dirpath, "measurements$(start)/exR_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
 
                 write_vector(data.R[P+1, id, :],Rfile)
                 write_vector(data.C[P+1, id, :],Cfile)
@@ -337,18 +348,18 @@ function save_data(data::Data, dirpath)
             q1 = mom_comb[P+1,op,1]
             q2 = mom_comb[P+1,op,2]
 
-            Vfile = joinpath(dirpath, "measurements/exVini_P$(P)_mom_$(q1)_$(q2)_confs$start-$finish.txt")
+            Vfile = joinpath(dirpath, "measurements$(start)/exVini_P$(P)_mom_$(q1)_$(q2)_confs$start-$finish.txt")
             write_vector(data.Vini[P+1, op, :],Vfile)
 
-            Vfile = joinpath(dirpath, "measurements/exVfin_P$(P)_mom_$(q1)_$(q2)_confs$start-$finish.txt")
+            Vfile = joinpath(dirpath, "measurements$(start)/exVfin_P$(P)_mom_$(q1)_$(q2)_confs$start-$finish.txt")
             write_vector(data.Vfin[P+1, op, :],Vfile)
 
-            Tsinifile = joinpath(dirpath, "measurements/exTsini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Tsinidisfile = joinpath(dirpath, "measurements/exTsinidis_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Trinifile = joinpath(dirpath, "measurements/exTrini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Tsfinfile = joinpath(dirpath, "measurements/exTsfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
-            Tsfindisfile = joinpath(dirpath, "measurements/exTsfindis_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
-            Trfinfile = joinpath(dirpath, "measurements/exTrfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
+            Tsinifile = joinpath(dirpath, "measurements$(start)/exTsini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
+            Tsinidisfile = joinpath(dirpath, "measurements$(start)/exTsinidis_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
+            Trinifile = joinpath(dirpath, "measurements$(start)/exTrini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
+            Tsfinfile = joinpath(dirpath, "measurements$(start)/exTsfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
+            Tsfindisfile = joinpath(dirpath, "measurements$(start)/exTsfindis_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
+            Trfinfile = joinpath(dirpath, "measurements$(start)/exTrfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
 
             write_vector(data.Tsini[P+1, id, :],Tsinifile)
             write_vector(data.Tsinidis[P+1, op, :],Tsinidisfile)
@@ -365,10 +376,10 @@ function save_data(data::Data, dirpath)
             q2 = mom_comb[P+1,op,1]
             q1 = mom_comb[P+1,op,2]
 
-            Tsinifile = joinpath(dirpath, "measurements/exTsini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Trinifile = joinpath(dirpath, "measurements/exTrini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Tsfinfile = joinpath(dirpath, "measurements/exTsfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
-            Trfinfile = joinpath(dirpath, "measurements/exTrfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
+            Tsinifile = joinpath(dirpath, "measurements$(start)/exTsini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
+            Trinifile = joinpath(dirpath, "measurements$(start)/exTrini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
+            Tsfinfile = joinpath(dirpath, "measurements$(start)/exTsfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
+            Trfinfile = joinpath(dirpath, "measurements$(start)/exTrfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
 
             write_vector(data.Tsini[P+1, id, :],Tsinifile)
             write_vector(data.Trini[P+1, id, :],Trinifile)
@@ -414,19 +425,19 @@ end
 #
 # function save_data(data::Data, dirpath)
 #     for ifl in 1:2
-#         deltafile = joinpath(dirpath, "measurements/exdelta-$(ifl)_confs$start-$finish.txt")
+#         deltafile = joinpath(dirpath, "measurements$(start)/exdelta-$(ifl)_confs$start-$finish.txt")
 #         write_vector(data.Delta[ifl, :],deltafile)
 #         for jfl in ifl:2
-#             connfile = joinpath(dirpath,"measurements/exconn-$ifl$(jfl)_confs$start-$finish.txt")
-#             discfile = joinpath(dirpath, "measurements/exdisc-$ifl$(jfl)_confs$start-$finish.txt")
+#             connfile = joinpath(dirpath,"measurements$(start)/exconn-$ifl$(jfl)_confs$start-$finish.txt")
+#             discfile = joinpath(dirpath, "measurements$(start)/exdisc-$ifl$(jfl)_confs$start-$finish.txt")
 #             write_vector(data.P[ifl, jfl, :],connfile)
 #             write_vector(data.disc[ifl, jfl, :],discfile)
 #         end
 #     end
 # end
 
-function save_topcharge(model, dirpath)
-    qfile = joinpath(dirpath,"measurements/topcharge_confs$start-$finish.txt")
+function save_topcharge(model, dirpath, start)
+    qfile = joinpath(dirpath,"measurements$(start)/topcharge_confs$start-$finish.txt")
     global io_stat = open(qfile, "a")
     write(io_stat, "$(top_charge(model))\n")
     close(io_stat)
@@ -446,16 +457,18 @@ end
 
 pws =  U1exCorrelator(model, wdir=dirname(cfile))
 for i in start:finish
-    if i == start && start != 1
-        LFTSampling.read_cnfg_n(fb, start, model)
-    else
-        read_next_cnfg(fb, model)
+    @time begin
+        if i == start && start != 1
+            LFTSampling.read_cnfg_n(fb, start, model)
+        else
+            read_next_cnfg(fb, model)
+        end
+        model.U .= 1
+        construct_invgD!(pws, model)
+        computeTwoPionCorrelationFunction(data, pws, model)
+        save_data(data, dirname(cfile), start)
+        save_topcharge(model, dirname(cfile), start)
     end
-    model.U .= 1
-    construct_invgD!(pws, model)
-    computeTwoPionCorrelationFunction(data, pws, model)
-    save_data(data, dirname(cfile))
-    #     save_topcharge(model, dirname(cfile))
 end
 close(fb)
 

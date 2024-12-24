@@ -175,7 +175,7 @@ struct U1exCorrelator <: LFTU1.AbstractU1Correlator
         invgD2 = copy(gD)
         e1 = LFTU1.to_device(u1ws.device, zeros(complex(Float64), lp.iL..., 2))
         e2 = copy(e1)
-        C = zeros(Float64, lp.iL[1])
+        C = zeros(Float64, lp.iL[2])
         history = []
         mkpath(dirname(filepath))
         return new(name, ID, filepath, gD, [invgD1, invgD2], e1, e2, C, history)
@@ -186,9 +186,9 @@ export U1exCorrelator
 """
 Translates a 3-dimensional tensor index (il1,il2,is) into a 1-dimensional index
 """
-function linear_index(il1, il2, is, L, S)
-    il1 <= L && il2 <= L && is <= S || error("Out of range")
-    return il1 + L * (il2 - 1) + L^2 * (is - 1)
+function linear_index(il1, il2, is, L, T, S)
+    il1 <= L && il2 <= T && is <= S || error("Out of range")
+    return il1 + L * (il2 - 1) + L*T * (is - 1)
 end
 export linear_index
 
@@ -214,12 +214,13 @@ function construct_gD!(corrws, u1ws::Union{U1Quenched,U1Nf2,U1Nf}, mass::Float64
     x1 .= 0.0
     x2 .= 0.0
     lsize = u1ws.params.iL[1]
-    for is in 1:2, il2 in 1:lsize, il1 in 1:lsize
-        ilinidx = linear_index(il1, il2, is, lsize, 2)
+    tsize = u1ws.params.iL[2]
+    for is in 1:2, il2 in 1:tsize, il1 in 1:lsize
+        ilinidx = linear_index(il1, il2, is, lsize, tsize, 2)
         x1[ilinidx] = 1.0
         gamm5Dw!(x2, x1, mass, u1ws)
-        for js in 1:2, jl2 in 1:lsize, jl1 in 1:lsize
-            jlinidx = linear_index(jl1, jl2, js, lsize, 2)
+        for js in 1:2, jl2 in 1:tsize, jl1 in 1:lsize
+            jlinidx = linear_index(jl1, jl2, js, lsize, tsize, 2)
             gD[jlinidx,ilinidx] = x2[jlinidx]
         end
         x1[ilinidx] = 0.0
@@ -300,55 +301,14 @@ function construct_invgD!(corrws, u1ws::U1Nf2)
 end
 export construct_invgD!
 
-"""
+raw"""
 Computes 1/N0 ∑_n,m tr[γ₅D⁻¹_ifl(n,t|m,t₀) γ₅D⁻¹_jfl(m,t₀|n,t)] with source at
 time slice `t` and sink at time slice `t0`. (tr is over spin)
-"""
-function ex_connected_correlator_t0(corrws, t, t0, u1ws, ifl, jfl)
-    gDinv1 = corrws.invgD[ifl]
-    gDinv2 = corrws.invgD[jfl]
-    lsize = u1ws.params.iL[1]
-    Ct = 0.0
-    for (is1, is2, ilm, iln) in Iterators.product(1:2, 1:2, 1:lsize, 1:lsize)
-        Ct += gDinv1[linear_index(iln, t, is1, lsize, 2), linear_index(ilm, t0, is2, lsize, 2)] * gDinv2[linear_index(ilm, t0, is2, lsize, 2),linear_index(iln, t, is1, lsize, 2)]/lsize
-    end
-    return Ct
-end
-export ex_connected_correlator_t0
-
-function ex_connected_correlator(corrws, u1ws, t0, ifl, jfl)
-    lp = u1ws.params
-    for t in 1:lp.iL[1]
-        corrws.result[t] = ex_connected_correlator_t0(corrws, t, t0, u1ws, ifl, jfl) |> real
-    end
-end
-export ex_connected_correlator
-
-
-"""
-Computes 1/√N0 ∑_n tr[γ₅D⁻¹_ifl(n,t|n,t)] at time slice `t`. (tr is over spin)
-"""
-function ex_disconnected_correlator_t0(corrws::U1exCorrelator, t, u1ws, ifl)
-    gDinv = corrws.invgD[ifl]
-    lsize = u1ws.params.iL[1]
-    Ct = 0.0
-    for (is, iln) in Iterators.product(1:2, 1:lsize)
-        Ct += gDinv[linear_index(iln, t, is, lsize, 2), linear_index(iln, t, is, lsize, 2)] / sqrt(lsize)
-    end
-    return Ct
-end
-export ex_disconnected_correlator_t0
-
-function ex_disconnected_correlator(corrws, u1ws, ifl)
-    lp = u1ws.params
-    for t in 1:lp.iL[1]
-        corrws.result[t] = ex_disconnected_correlator_t0(corrws, t, u1ws, ifl) |> real
-    end
-end
-export ex_disconnected_correlator
-
-"""
-Computes all two-to-two correlation functions
+    --------                 *(n,t)     *(n,t)--
+  /          \              /  \        |        \
+ *(n,t)       *(m,t₀)  or  |    |   or   \         \
+  \          /              \  /           \        |
+    --------                 *(m,t₀)         -------*(m,t₀)
 """
 
 function getId(combs, p1, p2)
@@ -379,14 +339,14 @@ function all_correlators1(correlator, g5_correlator, MR, data, u1ws, Pmax, Onum,
     L = u1ws.params.iL[1]
 
     for p in -abspmax:abspmax
-        Threads.@threads for t in 1:T
+         Threads.@threads for t in 1:T
             data.Delta[abspmax+p+1,t] = LinearAlgebra.tr(correlator[p+1+abspmax,t,t,:,:])
             data.Deltas[abspmax+p+1,t] = LinearAlgebra.tr(g5_correlator[p+1+abspmax,t,t,:,:])
         end
     end
 
     for p in 0:abspmax
-        Threads.@threads for t in 0:T-1
+         Threads.@threads for t in 0:T-1
             for t0 in 1:T
                 data.P[p+1, t+1] += sum(transpose(correlator[1+abspmax-p, t0, 1+(t+t0-1) % T, :, :]) .* correlator[1+abspmax+p, 1+(t+t0-1) % T, t0, :, :]) / T
                 data.Ps[p+1, t+1] += sum(transpose(g5_correlator[1+abspmax-p, t0, 1+(t+t0-1) % T, :, :]) .* g5_correlator[1+abspmax+p, 1+(t+t0-1) % T, t0, :, :]) / T
@@ -407,6 +367,7 @@ function all_correlators1(correlator, g5_correlator, MR, data, u1ws, Pmax, Onum,
         end
     end
 
+    @time begin
     Threads.@threads for P in 0:Pmax
         id = 1
         for ini in 1:Onum
@@ -471,6 +432,7 @@ function all_correlators1(correlator, g5_correlator, MR, data, u1ws, Pmax, Onum,
 
         end
     end
+    end
     return nothing
 end
 export all_correlators1
@@ -487,36 +449,38 @@ function all_correlators3(correlator, mIg0_correlator, MR, data, u1ws, Pmax, Onu
         end
     end
 
-    Threads.@threads for P in 0:Pmax
-        id = 1
-        for op in 1:Onum
-            q1 = mom_comb[P+1,op,1]
-            q2 = mom_comb[P+1,op,2]
+    @time begin
+        Threads.@threads for P in 0:Pmax
+            id = 1
+            for op in 1:Onum
+                q1 = mom_comb[P+1,op,1]
+                q2 = mom_comb[P+1,op,2]
 
-            for t in 0:T-1
-                for t0 in 1:T
-                    data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T #The minus sign comes from the dagger operator, as gamma_1 and gamma_0 anticommute
-                    data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
+                for t in 0:T-1
+                    for t0 in 1:T
+                        data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T #The minus sign comes from the dagger operator, as gamma_1 and gamma_0 anticommute
+                        data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
+                    end
                 end
-            end
-            id += 1
+                id += 1
 
 
-            if q1 == q2
-                continue
-            end
-
-            q2 = mom_comb[P+1,op,1]
-            q1 = mom_comb[P+1,op,2]
-
-            for t in 0:T-1
-                for t0 in 1:T
-                    data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T
-                    data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
+                if q1 == q2
+                    continue
                 end
-            end
-            id += 1
 
+                q2 = mom_comb[P+1,op,1]
+                q1 = mom_comb[P+1,op,2]
+
+                for t in 0:T-1
+                    for t0 in 1:T
+                        data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T
+                        data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
+                    end
+                end
+                id += 1
+
+            end
         end
     end
     return nothing
@@ -561,3 +525,64 @@ function all_correlators2(MC, data, u1ws, Pmax, Onum, abspmax, mom_comb, phases)
     return nothing
 end
 export all_correlators2
+
+# function connected_correlator(MC, data, u1ws)
+#     L = u1ws.params.iL[1]
+#     T = u1ws.params.iL[2]
+#     for t0 in 1:T
+#         for t in 0:T-1
+#             data.C[t0] += sum(MC[t0, t, :, :]' .*' MC[t0, t, :, :]) / T
+#         end
+#     end
+#     return nothing
+# end
+# export connected_correlator
+#
+# function rectangle_correlator(MR, data, u1ws)
+#     L = u1ws.params.iL[1]
+#     T = u1ws.params.iL[2]
+#     for t0 in 1:T
+#         for t in 0:T-1
+#             data.R[t0] += sum(MR[t0, t, :, :]' .* MR[t, t0, :, :]) / T
+#         end
+#     end
+#     return nothing
+# end
+# export rectangle_correlator
+
+raw"""
+Computes 1/√N0^3 ∑_n1,n2,n3 tr[γ₅D⁻¹_ifl1(n1,t0|n2,t) γ₅D⁻¹_ifl2(n2,n2|n3,t3) γ₅D⁻¹_ifl3(n3,t3|n1,t0)]. (tr is over spin)
+
+               *(n3,t3)     *(n2,t)
+              /|            |  \                  
+           /   |            |    \       
+        /      |       or   |      \     
+     /         |            |        \   
+  /            |            |          \ 
+*(n1,t0)-------*(n2,t)     *(n1,t0)----*(n3,t3)
+"""
+# function ex_3point_connected_correlator_t0(corrws, t0, t, t3, u1ws, ifl1, ifl2, ifl3)
+#     gDinv1 = corrws.invgD[ifl1]
+#     gDinv2 = corrws.invgD[ifl2]
+#     gDinv3 = corrws.invgD[ifl3]
+#     lsize = u1ws.params.iL[1]
+#     tsize = u1ws.params.iL[2]
+#     Ct = 0.0
+#     for (is1, is2, is3, iln3, iln2, iln1) in Iterators.product(1:2, 1:2, 1:2, 1:lsize, 1:lsize, 1:lsize)
+#         Ct += (gDinv1[linear_index(iln1, t0, is1, lsize, tsize, 2), linear_index(iln2, t, is2, lsize, tsize, 2)]
+#             * gDinv2[linear_index(iln2, t, is2, lsize, tsize, 2), linear_index(iln3, t3, is3, lsize, tsize, 2)]
+#             * gDinv3[linear_index(iln3, t3, is3, lsize, tsize, 2), linear_index(iln1, t0, is1, lsize, tsize, 2)]
+#             / sqrt(lsize)^3
+#         )
+#     end
+#     return Ct
+# end
+# export ex_3point_connected_correlator_t0
+#
+# function ex_3point_connected_correlator_ttt0(corrws, u1ws, t0, ifl1, ifl2, ifl3)
+#     lp = u1ws.params
+#     for t in 1:lp.iL[2]
+#         corrws.result[t] = ex_3point_connected_correlator_t0(corrws, t, t, t0, u1ws, ifl1, ifl2, ifl3) |> real
+#     end
+# end
+# export ex_3point_connected_correlator_ttt0
