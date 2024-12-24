@@ -71,6 +71,20 @@ end
 
 sampler(lftws::U1Quenched, hmcp::HMCParams) = U1quenchedHMC(lftws, hmcp)
 
+function random_gauge_trafo(U1ws::U1)
+    lp = U1ws.params
+
+    Omega = exp.(im*2pi*Random.rand(Float64, lp.iL[1], lp.iL[2]))
+
+    for i in 1:lp.iL[1], j in 1:lp.iL[2]
+        iu = mod1(i+1, lp.iL[1])
+        ju = mod1(j+1, lp.iL[2])
+        U1ws.U[i,j,1] = Omega[i,j] * U1ws.U[i,j,1] * conj(Omega[iu,j])
+        U1ws.U[i,j,2] = Omega[i,j] * U1ws.U[i,j,2] * conj(Omega[i,ju])
+    end
+
+    return nothing
+end
 
 # ======================= #
 # ====== U1 Nf = 2 ====== #
