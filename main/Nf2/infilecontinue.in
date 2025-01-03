@@ -1,0 +1,22 @@
+["Model params"]
+beta = 5.0
+mass = -0.03
+L = 24
+T = 64
+BC = 'PeriodicBC'
+device = "CPU"
+
+["HMC params"]
+tau = 1.0
+nsteps = 7
+ntherm = 0
+ntraj = 10
+discard = 0
+integrator = "OMF4"
+
+["Working directory"]
+wdir = "Tests"
+savename = "ensemble1"
+continue = true
+cntfile = "Tests/ensemble1.bdio"
+

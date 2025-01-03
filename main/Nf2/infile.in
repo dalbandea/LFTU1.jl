@@ -1,13 +1,23 @@
 ["Model params"]
 beta = 5.0
+<<<<<<< HEAD
 mass = 0.2
 L = 50
+=======
+mass = -0.03
+L = 12
+T = 10
+>>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 BC = 'PeriodicBC'
 device = "CPU"
 
 ["HMC params"]
 tau = 1.0
+<<<<<<< HEAD
 nsteps = 4
+=======
+nsteps = 7
+>>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 ntherm = 10
 ntraj = 10
 discard = 0
@@ -16,7 +26,12 @@ windings = 100
 Lw = 3
 
 ["Working directory"]
+<<<<<<< HEAD
 wdir = "/home/david/git/dalbandea/phd/codes/6-LFTs/LFTModels/LFTU1.jl/results/3-Windings/1-Checks/1-U1Nf2/"
 replica = 0
+=======
+wdir = "Tests"
+savename = "ensemble1"
+>>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 continue = false
 cntfile = "/home/david/git/dalbandea/phd/codes/6-LFTs/LFTModels/LFTU1.jl/trash/Nf2sim-b5.0-L10-m0.4_D2025-02-06-18-12-55.613/0-r0/Nf2sim-b5.0-L10-m0.4_D2025-02-06-18-12-55.613-r000.bdio"
