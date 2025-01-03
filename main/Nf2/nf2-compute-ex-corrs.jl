@@ -58,26 +58,26 @@ end
 return parse_args(args, s)
 end
 
-length(ARGS) == 1 || error("Only one argument is expected! (Path to input file)")
-isfile(ARGS[1]) || error("Path provided is not a file")
+# length(ARGS) == 1 || error("Only one argument is expected! (Path to input file)")
+# isfile(ARGS[1]) || error("Path provided is not a file")
+#
+# if length(ARGS) == 1
+#     infile = ARGS[1]
+# else
+#     infile = "main/Nf2/infile.in"
+# end
+# parsed_args = TOML.parsefile(infile)
 
-if length(ARGS) == 1
-    infile = ARGS[1]
-else
-    infile = "main/Nf2/infile.in"
-end
-parsed_args = TOML.parsefile(infile)
-
-# args = [
-#     "-L", "48",
-#     "-T", "48",
-#     "--ens", "Tests/Nf2sim-b5.0-L48-T48-m-0.03_D2024-11-11-10-09-44.301/Nf2sim-b5.0-L48-T48-m-0.03_D2024-11-11-10-09-44.301.bdio",
-#     "--start", "1",
-#     "--nconf", "1",
-#     "--Pmax", "0",
-#     "--Onum", "2",
-#     ]
-# parsed_args = parse_commandline(args)
+args = [
+    "-L", "12",
+    "-T", "10",
+    "--ens", "Tests/ensemble1.bdio",
+    "--start", "1",
+    "--nconf", "1",
+    "--Pmax", "3",
+    "--Onum", "5",
+    ]
+parsed_args = parse_commandline(args)
 
 const NFL = 2
 const NL0 = parsed_args["L"]
@@ -86,6 +86,7 @@ const Pmax = parsed_args["Pmax"]
 const Onum = parsed_args["Onum"]
 
 cfile = parsed_args["ens"]
+spath = parsed_args["sens"]
 isfile(cfile) || error("Path provided is not a file")
 
 start = parsed_args["start"]
@@ -463,11 +464,12 @@ for i in start:finish
         else
             read_next_cnfg(fb, model)
         end
-        model.U .= 1
+#         model.U .= 1
+#         random_gauge_trafo(model)
         construct_invgD!(pws, model)
         computeTwoPionCorrelationFunction(data, pws, model)
         save_data(data, dirname(cfile), start)
-        save_topcharge(model, dirname(cfile), start)
+        save_topcharge(model, spath, start)
     end
 end
 close(fb)

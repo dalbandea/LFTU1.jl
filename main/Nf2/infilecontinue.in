@@ -1,15 +1,15 @@
 ["Model params"]
 beta = 5.0
 mass = -0.03
-L = 12
-T = 10
+L = 24
+T = 64
 BC = 'PeriodicBC'
 device = "CPU"
 
 ["HMC params"]
 tau = 1.0
 nsteps = 7
-ntherm = 10
+ntherm = 0
 ntraj = 10
 discard = 0
 integrator = "OMF4"
@@ -17,6 +17,6 @@ integrator = "OMF4"
 ["Working directory"]
 wdir = "Tests"
 savename = "ensemble1"
-continue = false
-cntfile = "trash/Nf2sim-b4.0-L24-m0.02_D2024-04-17-18-04-06.008/Nf2sim-b4.0-L24-m0.02_D2024-04-17-18-04-06.008.bdio"
+continue = true
+cntfile = "Tests/ensemble1.bdio"
 

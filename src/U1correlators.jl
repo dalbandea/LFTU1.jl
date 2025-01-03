@@ -367,7 +367,6 @@ function all_correlators1(correlator, g5_correlator, MR, data, u1ws, Pmax, Onum,
         end
     end
 
-    @time begin
     Threads.@threads for P in 0:Pmax
         id = 1
         for ini in 1:Onum
@@ -379,7 +378,7 @@ function all_correlators1(correlator, g5_correlator, MR, data, u1ws, Pmax, Onum,
                 for t in 0:T-1
                     for t0 in 1:T
                         data.VV[P+1,Onum*(ini-1)+fin, t+1] += data.Vini[P+1, ini, t0] * data.Vfin[P+1, fin, 1+(t+t0-1) % T] / T
-                        data.R[P+1, id, t+1] += sum(transpose(multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) .* multiplyPhase(MR[1+abspmax+p2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+p1],L)) / T
+                        data.R[P+1, id, t+1] += sum(transpose(multiplyPhase(MR[1+abspmax-q1,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q2],L)) .* multiplyPhase(MR[1+abspmax+p2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+p1],L)) / T
                     end
                 end
                 id += 1
@@ -392,7 +391,7 @@ function all_correlators1(correlator, g5_correlator, MR, data, u1ws, Pmax, Onum,
                 p1 = mom_comb[P+1,fin,2]
                 for t in 0:T-1
                     for t0 in 1:T
-                        data.R[P+1, id, t+1] += sum(transpose(multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) .* multiplyPhase(MR[1+abspmax+p2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+p1],L)) / T
+                        data.R[P+1, id, t+1] += sum(transpose(multiplyPhase(MR[1+abspmax-q1,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q2],L)) .* multiplyPhase(MR[1+abspmax+p2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+p1],L)) / T
                     end
                 end
                 id += 1
@@ -432,7 +431,6 @@ function all_correlators1(correlator, g5_correlator, MR, data, u1ws, Pmax, Onum,
 
         end
     end
-    end
     return nothing
 end
 export all_correlators1
@@ -449,38 +447,36 @@ function all_correlators3(correlator, mIg0_correlator, MR, data, u1ws, Pmax, Onu
         end
     end
 
-    @time begin
-        Threads.@threads for P in 0:Pmax
-            id = 1
-            for op in 1:Onum
-                q1 = mom_comb[P+1,op,1]
-                q2 = mom_comb[P+1,op,2]
+    Threads.@threads for P in 0:Pmax
+        id = 1
+        for op in 1:Onum
+            q1 = mom_comb[P+1,op,1]
+            q2 = mom_comb[P+1,op,2]
 
-                for t in 0:T-1
-                    for t0 in 1:T
-                        data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T #The minus sign comes from the dagger operator, as gamma_1 and gamma_0 anticommute
-                        data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
-                    end
+            for t in 0:T-1
+                for t0 in 1:T
+                    data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T #The minus sign comes from the dagger operator, as gamma_1 and gamma_0 anticommute
+                    data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
                 end
-                id += 1
-
-
-                if q1 == q2
-                    continue
-                end
-
-                q2 = mom_comb[P+1,op,1]
-                q1 = mom_comb[P+1,op,2]
-
-                for t in 0:T-1
-                    for t0 in 1:T
-                        data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T
-                        data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
-                    end
-                end
-                id += 1
-
             end
+            id += 1
+
+
+            if q1 == q2
+                continue
+            end
+
+            q2 = mom_comb[P+1,op,1]
+            q1 = mom_comb[P+1,op,2]
+
+            for t in 0:T-1
+                for t0 in 1:T
+                    data.Trini[P+1, id, t+1] -= sum(transpose(mIg0_correlator[1+abspmax-P, t0, 1+(t+t0-1) % T, :, :]) .* multiplyPhase(MR[1+abspmax+q2,1+(t+t0-1) % T,t0,:,:],phases[abspmax+1+q1],L)) / T
+                    data.Trfin[P+1, id, t+1] += sum(transpose(mIg0_correlator[1+abspmax+P, 1+(t+t0-1) % T, t0, :, :]) .* multiplyPhase(MR[1+abspmax-q2,t0,1+(t+t0-1) % T,:,:],phases[abspmax+1-q1],L)) / T
+                end
+            end
+            id += 1
+
         end
     end
     return nothing
