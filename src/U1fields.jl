@@ -34,14 +34,21 @@ function random_gauge_trafo(U1ws::U1)
     return nothing
 end
 
-function winding(Lw, U1ws::U1; sign = 1)
+function winding(Lw, U1ws::U1; sign = 1, loc::Union{Nothing, Tuple{Int64, Int64}} = nothing)
+    lp = U1ws.params
+
     sign == 1 || sign == -1 || Base.error("Sign of winding must be +1 or -1.")
+    loc == nothing || (loc[1] >= 1 && loc[1] <= lp.iL[1]) || Base.error("Winding position index 1 out of range.")
+    loc == nothing || (loc[2] >= 1 && loc[2] <= lp.iL[2]) || Base.error("Winding position index 2 out of range.")
 
-    # pos = Int64(floor(lsize*lsize*rand()))
-    pos = 1
-
-    x1  = Int64(floor((pos-1)/lsize)) +1
-    x2  = mod1(pos, lsize)
+    if loc == nothing
+        pos = Int64(floor(lp.iL[1]*lp.iL[2]*rand()))
+        x1  = mod1(Int64(floor((pos-1)/lp.iL[1])) +1, lp.iL[1])
+        x2  = mod1(pos, lp.iL[2])
+    else
+        x1 = loc[1]
+        x2 = loc[2]
+    end
 
     phase = zeros(ComplexF64, Lw+1, Lw+1)
 
@@ -56,12 +63,18 @@ function winding(Lw, U1ws::U1; sign = 1)
     Omega = exp.(sign*im*phase)
 
     for i in 1:Lw, j in 1:Lw
-        U1ws.U[i,j,1] = Omega[i,j] * U1ws.U[i,j,1] * conj(Omega[i+1,j])
-        U1ws.U[i,j,2] = Omega[i,j] * U1ws.U[i,j,2] * conj(Omega[i,j+1])
+        x1u = mod1(x1-1+i, lp.iL[1])
+        x2u = mod1(x2-1+j, lp.iL[2])
+        U1ws.U[x1u,x2u,1] = Omega[i,j] * U1ws.U[x1u,x2u,1] * conj(Omega[i+1,j])
+        U1ws.U[x1u,x2u,2] = Omega[i,j] * U1ws.U[x1u,x2u,2] * conj(Omega[i,j+1])
     end
+    x1Lwu = mod1(x1 - 1 + Lw + 1, lp.iL[1])
+    x2Lwu = mod1(x2 - 1 + Lw + 1, lp.iL[2])
     for i in 1:Lw
-        U1ws.U[i,Lw+1,1] = Omega[i,Lw+1] * U1ws.U[i,Lw+1,1] * conj(Omega[i+1,Lw+1])
-        U1ws.U[Lw+1,i,2] = Omega[Lw+1,i] * U1ws.U[Lw+1,i,2] * conj(Omega[Lw+1,i+1])
+        x1u = mod1(x1-1+i, lp.iL[1])
+        x2u = mod1(x2-1+i, lp.iL[2])
+        U1ws.U[x1u,x2Lwu,1] = Omega[i,Lw+1] * U1ws.U[x1u,x2Lwu,1] * conj(Omega[i+1,Lw+1])
+        U1ws.U[x1Lwu,x2u,2] = Omega[Lw+1,i] * U1ws.U[x1Lwu,x2u,2] * conj(Omega[Lw+1,i+1])
     end
 
     return nothing
