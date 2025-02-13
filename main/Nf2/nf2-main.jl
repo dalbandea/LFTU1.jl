@@ -29,12 +29,24 @@ using LFTU1
 using Dates
 using Logging
 
-function create_simulation_directory(wdir::String, u1ws::U1Nf2)
+function create_simulation_directory(wdir::String, u1ws::U1Nf2; replica::Int64)
     dt = Dates.now()
-    wdir_sufix = "_D"*Dates.format(dt, "yyyy-mm-dd-HH-MM-SS.ss")
-    fname = "Nf2sim-b$(u1ws.params.beta)-L$(model.params.iL[1])-m$(u1ws.params.am0)"*wdir_sufix
-    fdir = joinpath(wdir, fname)
-    configfile = joinpath(fdir, fname*".bdio")
+
+    if replica == 0
+        wdir_sufix = "_D"*Dates.format(dt, "yyyy-mm-dd-HH-MM-SS.ss")
+        fname = "Nf2sim-b$(u1ws.params.beta)-L$(model.params.iL[1])-m$(u1ws.params.am0)"*wdir_sufix
+        fdir = joinpath(wdir, fname, "$(replica)-r$(replica)")
+        configfile = joinpath(fdir, fname*"-r$(lpad(replica,3,'0')).bdio")
+    elseif replica > 0
+        isdir(joinpath(wdir, "0-r0")) || error("Replica 0 folder not found")
+        isdir(joinpath(wdir, "$(replica)-r$(replica)")) && error("Replica $(replica) folder already exists!")
+        fname = wdir
+        fdir = joinpath(fname, "$(replica)-r$(replica)")
+        configfile = joinpath(fdir, splitpath(wdir)[end]*"-r$(lpad(replica,3,'0')).bdio")
+    else
+        error("Replica number not valid")
+    end
+
     mkpath(fdir)
     cp(infile, joinpath(fdir,splitpath(infile)[end]))
     return configfile
@@ -59,15 +71,16 @@ integrator = eval(Meta.parse(pdata["HMC params"]["integrator"]))
 # Working directory
 
 wdir = pdata["Working directory"]["wdir"]
+replica = pdata["Working directory"]["replica"]
 cntinue = pdata["Working directory"]["continue"]
 cntfile = pdata["Working directory"]["cntfile"]
 
 
 model = U1Nf2(
-              Float64, 
-              beta = beta, 
-              am0 = mass, 
-              iL = (lsize, lsize), 
+              Float64,
+              beta = beta,
+              am0 = mass,
+              iL = (lsize, lsize),
               BC = PeriodicBC,
               device = device,
              )
@@ -86,7 +99,7 @@ if cntinue == true
 else
     @info "Creating simulation directory"
     ncfgs = 0
-    configfile = create_simulation_directory(wdir, model)
+    configfile = create_simulation_directory(wdir, model, replica = replica)
 end
 
 logio = open(dirname(configfile)*"/log.txt", "a+")

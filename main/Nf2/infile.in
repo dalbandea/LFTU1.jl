@@ -1,20 +1,20 @@
 ["Model params"]
-beta = 4.0
-mass = 0.02
-L = 24
+beta = 5.0
+mass = 0.4
+L = 10
 BC = 'PeriodicBC'
 device = "CPU"
 
 ["HMC params"]
 tau = 1.0
-nsteps = 3
+nsteps = 4
 ntherm = 10
-ntraj = 100000
+ntraj = 10
 discard = 0
 integrator = "OMF4"
 
 ["Working directory"]
-wdir = "trash/"
+wdir = "/home/david/git/dalbandea/phd/codes/6-LFTs/LFTModels/LFTU1.jl/trash/Nf2sim-b5.0-L10-m0.4_D2025-02-06-18-12-55.613/"
+replica = 1
 continue = false
-cntfile = "trash/Nf2sim-b4.0-L24-m0.02_D2024-04-17-18-04-06.008/Nf2sim-b4.0-L24-m0.02_D2024-04-17-18-04-06.008.bdio"
-
+cntfile = "/home/david/git/dalbandea/phd/codes/6-LFTs/LFTModels/LFTU1.jl/trash/Nf2sim-b5.0-L10-m0.4_D2025-02-06-18-12-55.613/0-r0/Nf2sim-b5.0-L10-m0.4_D2025-02-06-18-12-55.613-r000.bdio"
