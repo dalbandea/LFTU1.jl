@@ -34,7 +34,7 @@ function random_gauge_trafo(U1ws::U1)
     return nothing
 end
 
-function winding(Lw, U1ws::U1; sign = 1, loc::Union{Nothing, Tuple{Int64, Int64}} = nothing)
+function winding!(Lw, U1ws::U1; sign = 1, loc::Union{Nothing, Tuple{Int64, Int64}} = nothing)
     lp = U1ws.params
 
     sign == 1 || sign == -1 || Base.error("Sign of winding must be +1 or -1.")
