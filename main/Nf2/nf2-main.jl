@@ -67,6 +67,8 @@ ntherm = pdata["HMC params"]["ntherm"]
 ntraj = pdata["HMC params"]["ntraj"]
 discard = pdata["HMC params"]["discard"]
 integrator = eval(Meta.parse(pdata["HMC params"]["integrator"]))
+N_windings = pdata["HMC params"]["windings"]
+Lw = pdata["HMC params"]["Lw"]
 
 # Working directory
 
@@ -107,6 +109,8 @@ logger = SimpleLogger(logio)
 global_logger(logger)
 
 @info "U(1) NF=2 SIMULATION" model.params smplr
+@info "Number of windings: $N_windings" 
+@info "Winding size: $Lw" 
 
 if cntinue == true
     @info "Skipping thermalization"
@@ -114,7 +118,7 @@ else
     @info "Starting thermalization"
     for i in 1:ntherm
         @info "THERM STEP $i"
-        @time sample!(model, samplerws)
+        @time sample!(model, samplerws, N_windings = N_windings, Lw = Lw)
         flush(logio)
     end
 end
@@ -128,9 +132,9 @@ end
 @time for i in (ncfgs+1):(ncfgs+ntraj)
     @info "TRAJECTORY $i"
     for j in 1:discard
-        @time sample!(model, samplerws)
+        @time sample!(model, samplerws, N_windings = N_windings, Lw = Lw)
     end
-    @time sample!(model, samplerws)
+    @time sample!(model, samplerws, N_windings = N_windings, Lw = Lw)
     save_cnfg(configfile, model)
     flush(logio)
 end
