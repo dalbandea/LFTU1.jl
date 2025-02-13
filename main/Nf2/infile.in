@@ -1,7 +1,7 @@
 ["Model params"]
 beta = 5.0
-mass = 0.4
-L = 10
+mass = 0.2
+L = 50
 BC = 'PeriodicBC'
 device = "CPU"
 
@@ -12,9 +12,11 @@ ntherm = 10
 ntraj = 10
 discard = 0
 integrator = "OMF4"
+windings = 100
+Lw = 3
 
 ["Working directory"]
-wdir = "/home/david/git/dalbandea/phd/codes/6-LFTs/LFTModels/LFTU1.jl/trash/Nf2sim-b5.0-L10-m0.4_D2025-02-06-18-12-55.613/"
-replica = 1
+wdir = "/home/david/git/dalbandea/phd/codes/6-LFTs/LFTModels/LFTU1.jl/results/3-Windings/1-Checks/1-U1Nf2/"
+replica = 0
 continue = false
 cntfile = "/home/david/git/dalbandea/phd/codes/6-LFTs/LFTModels/LFTU1.jl/trash/Nf2sim-b5.0-L10-m0.4_D2025-02-06-18-12-55.613/0-r0/Nf2sim-b5.0-L10-m0.4_D2025-02-06-18-12-55.613-r000.bdio"
