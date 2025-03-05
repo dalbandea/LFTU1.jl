@@ -24,7 +24,7 @@ let
 
     LW = 4
 
-    winding(LW, model, sign=-1)
+    winding!(LW, model, sign=-1)
 
     Q1 = top_charge(model)
     Sw = gauge_action(model)
