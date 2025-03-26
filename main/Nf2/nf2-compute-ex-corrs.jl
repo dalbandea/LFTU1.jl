@@ -1,9 +1,9 @@
 # Quantum Rotor
 import Pkg
 Pkg.activate(".")
-Pkg.add("Revise")
 using Revise
 using LFTSampling
+
 using LFTU1
 # using ProgressBars
 using Dates
@@ -11,6 +11,7 @@ import LinearAlgebra
 using ArgParse
 using Distributed
 using TOML
+using HDF5
 
 parse_commandline() = parse_commandline(ARGS)
 function parse_commandline(args)
@@ -42,6 +43,11 @@ function parse_commandline(args)
         help = "path to ensemble with configurations"
         required = true
         arg_type = String
+
+        "--sens"
+        help = "path to save measurements"
+        required = true
+        arg_type = String
         # default = "configs/"
 
         "--Pmax"
@@ -54,40 +60,48 @@ function parse_commandline(args)
         required = true
         arg_type = Int
 
+        "--tstep"
+        help = "Separation of source times"
+        required = true
+        arg_type = Int
+
 end
 return parse_args(args, s)
 end
 
-# length(ARGS) == 1 || error("Only one argument is expected! (Path to input file)")
-# isfile(ARGS[1]) || error("Path provided is not a file")
-#
-# if length(ARGS) == 1
-#     infile = ARGS[1]
-# else
-#     infile = "main/Nf2/infile.in"
-# end
-# parsed_args = TOML.parsefile(infile)
+length(ARGS) == 1 || error("Only one argument is expected! (Path to input file)")
+isfile(ARGS[1]) || error("Path provided is not a file")
 
-args = [
-    "-L", "12",
-    "-T", "10",
-    "--ens", "Tests/ensemble1.bdio",
-    "--start", "1",
-    "--nconf", "1",
-    "--Pmax", "3",
-    "--Onum", "5",
-    ]
-parsed_args = parse_commandline(args)
+
+if length(ARGS) == 1
+    infile = ARGS[1]
+else
+    infile = "main/Nf2/infile.in"
+end
+parsed_args = TOML.parsefile(infile)
+
+# args = [
+#     "-L", "12",
+#     "-T", "10",
+#     "--ens", "Tests/ensemble1.bdio",
+#     "--start", "1",
+#     "--nconf", "1",
+#     "--Pmax", "3",
+#     "--Onum", "5",
+#     ]
+# parsed_args = parse_commandline(args)
 
 const NFL = 2
 const NL0 = parsed_args["L"]
 const NT0 = parsed_args["T"]
+const tstep = parsed_args["tstep"]
 const Pmax = parsed_args["Pmax"]
 const Onum = parsed_args["Onum"]
 
 cfile = parsed_args["ens"]
 spath = parsed_args["sens"]
 isfile(cfile) || error("Path provided is not a file")
+NT0 % tstep == 0 || error("tstep needs to divide NT0")
 
 start = parsed_args["start"]
 ncfgs = parsed_args["nconf"]
@@ -96,7 +110,7 @@ if ncfgs == 0
 end
 finish = start + ncfgs - 1
 
-fb, model = read_cnfg_info(cfile, U1Nf2)
+# fb, model = read_cnfg_info(cfile, U1Nf2)
 
 function getAllTwoMomentum()
     mom_comb = zeros(Int, (Pmax+1, Onum, 2))
@@ -122,357 +136,629 @@ mom_comb, abspmax = getAllTwoMomentum()
 pnum = 2 * abspmax + 1
 
 data = (
-    P = zeros(complex(Float64), abspmax + 1, NT0),
-    Pr = zeros(complex(Float64), abspmax + 1, NT0),
-    Ps = zeros(complex(Float64), abspmax + 1, NT0),
-    disc = zeros(complex(Float64), abspmax + 1, NT0),
-    discs = zeros(complex(Float64), abspmax + 1, NT0),
-    Delta = zeros(complex(Float64), 2*abspmax + 1, NT0),
-    Deltas = zeros(complex(Float64), 2*abspmax + 1, NT0),
-    Vini = zeros(complex(Float64), Pmax+1, Onum, NT0),
-    Vfin = zeros(complex(Float64), Pmax+1, Onum, NT0),
-    R = zeros(complex(Float64), Pmax+1, Onum^2*2, NT0), #This is not the exact number. I am overcounting those operators with p1=p2. However, the computations are always performed once and never overdone
-    C = zeros(complex(Float64), Pmax+1, Onum^2*2, NT0),
-    D = zeros(complex(Float64), Pmax+1, Onum^2*2, NT0),
-    VV = zeros(complex(Float64), Pmax+1, Onum^2*2, NT0),
-    Tsini = zeros(complex(Float64), Pmax+1, Onum*2, NT0),
-    Tsinidis = zeros(complex(Float64), Pmax+1, Onum, NT0),
-    Tsfin = zeros(complex(Float64), Pmax+1, Onum*2, NT0),
-    Tsfindis = zeros(complex(Float64), Pmax+1, Onum, NT0),
-    Trini = zeros(complex(Float64), Pmax+1, Onum*2, NT0),
-    Trfin = zeros(complex(Float64), Pmax+1, Onum*2, NT0),
+    P = zeros(complex(Float64), abspmax + 1, 4, 4),
+    Bini = zeros(complex(Float64), abspmax + 1, 4, NT0),
+    Bfin = zeros(complex(Float64), abspmax + 1, 4, NT0),
+    BB = zeros(complex(Float64), abspmax + 1, 4, 4),
+    Vini = zeros(complex(Float64), Pmax + 1, Onum, NT0),
+    Vfin = zeros(complex(Float64), Pmax + 1, Onum, NT0),
+    VV = zeros(complex(Float64), Pmax + 1, Onum^2*2),
+    R = zeros(complex(Float64), Pmax + 1, Onum^2*2),
+    C = zeros(complex(Float64), Pmax + 1, Onum^2*2),
+    D = zeros(complex(Float64), Pmax + 1, Onum^2*2),
+    Tini = zeros(complex(Float64), Pmax + 1, 4, Onum*2),
+    Tdisini = zeros(complex(Float64), Pmax + 1, 4, Onum),
+    Tfin = zeros(complex(Float64), Pmax + 1, 4, Onum*2),
+    Tdisfin = zeros(complex(Float64), Pmax + 1, 4, Onum),
     )
 Data = typeof(data)
 
 function reset_data(data::Data)
+   reset_data_singleT(data)
+   reset_data_allT(data)
+end
+
+function reset_data_singleT(data::Data)
     data.P .= 0.0
-    data.Pr .= 0.0
-    data.Ps .= 0.0
-    data.disc .= 0.0
-    data.discs .= 0.0
-    data.Delta .= 0.0
-    data.Deltas .= 0.0
-    data.Vini .= 0.0
-    data.Vfin .= 0.0
+    data.BB .= 0.0
+    data.VV .= 0.0
     data.R .= 0.0
     data.C .= 0.0
     data.D .= 0.0
-    data.VV .= 0.0
-    data.Tsini .= 0.0
-    data.Tsinidis .= 0.0
-    data.Tsfin .= 0.0
-    data.Tsfindis .= 0.0
-    data.Trini .= 0.0
-    data.Trfin .= 0.0
+    data.Tini .= 0.0
+    data.Tdisini .= 0.0
+    data.Tfin .= 0.0
+    data.Tdisfin .= 0.0
     return nothing
+end
+
+function reset_data_allT(data::Data)
+    data.Bini .= 0.0
+    data.Bfin .= 0.0
+    data.Vini .= 0.0
+    data.Vfin .= 0.0
 end
 
 """
 - Computes all correlation functions required to study pion-pion scattering, in all isospin channels. Includes correlation functions between a two-pion and a single-particle state.
 """ 
-function multiplyAllMomenta(correlator)
-    id = 0
-    L = NL0
-    for p in -abspmax:abspmax
-        id += 1
-        if p == 0
-            continue
-        end
-        x = collect(range(0.,length=L))
-        expfactor = exp.(- 1im * x * p * 2. * pi / L)
-        Threads.@threads for tini in 1:NT0
-            for tend in 1:NT0
-                for y in 1:L
-                    correlator[id, tini, tend, 1:L, y] = expfactor .* correlator[1+abspmax, tini, tend, 1:L, y]
-                    correlator[id, tini, tend, L+1:2*L, y] = expfactor .* correlator[1+abspmax, tini, tend, L+1:2*L, y]
-                    correlator[id, tini, tend, 1:L, L+y] = expfactor .* correlator[1+abspmax, tini, tend, 1:L, L+y]
-                    correlator[id, tini, tend, L+1:2*L, L+y] = expfactor .* correlator[1+abspmax, tini, tend, L+1:2*L, L+y]
-                end
-            end
-        end
+function multiplyPhaseLeft(correlator, mom)
+    if mom == 0
+        return correlator
     end
+    L = NL0
+    x = collect(range(0.,length=L))
+    expfactor = exp.(- 1im * x * mom * 2. * pi / L)
+    for y in 1:L
+        correlator[1:L, y] = expfactor .* correlator[1:L, y]
+        correlator[L+1:2*L, y] = expfactor .* correlator[L+1:2*L, y]
+        correlator[1:L, L+y] = expfactor .* correlator[1:L, L+y]
+        correlator[L+1:2*L, L+y] = expfactor .* correlator[L+1:2*L, L+y]
+    end
+    return correlator
 end
 
-function getPhases(abspmax, L)
-    res =  Any[]
-    for p in -abspmax:abspmax
-        x = collect(range(0.,length=L))
-        expfactor = exp.(- 1im * x * p * 2. * pi / L)
-        push!(res, expfactor)
+function multiplyPhaseRight(correlator, mom)
+    if mom == 0
+        return correlator
     end
+    L = NL0
+    x = collect(range(0.,length=L))
+    expfactor = exp.(- 1im * x * mom * 2. * pi / L)
+    for y in 1:L
+        correlator[y,1:L] = expfactor .* correlator[y, 1:L]
+        correlator[y, L+1:2*L] = expfactor .* correlator[y, L+1:2*L]
+        correlator[L+y, 1:L] = expfactor .* correlator[L+y, 1:L]
+        correlator[L+y, L+1:2*L] = expfactor .* correlator[L+y, L+1:2*L]
+    end
+    return correlator
+end
+
+function getcorrelator(corr, tini, tfin) #Confirmar con David: el orden de los tiempos es corr[tfin, tini]
+    L = NL0
+    T = NT0
+    correlator = zeros(complex(Float64), NL0*2, NL0*2)
+    correlator[1:L, 1:L] = corr[1 + L * (tini-1) : L * (tini), 1 + L * (tfin-1) : L * (tfin)]
+    correlator[L+1:2*L, 1:L] = corr[1 + L * (tini-1) + L*T : L * (tini) + L*T, 1 + L * (tfin-1) : L * (tfin)]
+    correlator[1:L, L+1:2*L] = corr[1 + L * (tini-1) : L * (tini), 1 + L * (tfin-1) + L*T : L * (tfin) + L*T]
+    correlator[L+1:2*L, L+1:2*L] = corr[1 + L * (tini-1) + L*T : L * (tini) + L*T, 1 + L * (tfin-1) + L*T : L * (tfin) + L*T]
+    return correlator
+end
+
+function gammaIg5g0(correlator)
+    res = zeros(complex(Float64),size(correlator))
+    L = NL0
+    res[1:L, 1:L] = (correlator[L+1:2*L, 1:L])
+    res[1:L, L+1:2*L] = (correlator[L+1:2*L, L+1:2*L])
+    res[L+1:2*L, 1:L] = -(correlator[1:L, 1:L])
+    res[L+1:2*L, L+1:2*L] = -(correlator[1:L, L+1:2*L])
     return res
 end
 
-function computeTwoPionCorrelationFunction(data::Data, corrws::U1exCorrelator, u1ws)
-    reset_data(data)
-    correlator = zeros(complex(Float64), 2*abspmax+1, NT0, NT0, NL0*2, NL0*2)
-    g5_correlator = zeros(complex(Float64), 2*abspmax+1, NT0, NT0, NL0*2, NL0*2)
-    MR = zeros(complex(Float64), 2*abspmax+1, NT0, NT0, NL0*2, NL0*2)
+function gammaId(correlator)
+    res = zeros(complex(Float64),size(correlator))
+    L = NL0
+    res[1:L, 1:L] = correlator[1:L, 1:L]
+    res[1:L, L+1:2*L] = correlator[1:L, L+1:2*L]
+    res[L+1:2*L, 1:L] = -correlator[L+1:2*L, 1:L]
+    res[L+1:2*L, L+1:2*L] = -correlator[L+1:2*L, L+1:2*L]
+    return res
+end
 
-    phases = getPhases(abspmax, NL0)
+function gammaIg0(correlator)
+    res = zeros(complex(Float64),size(correlator))
+    L = NL0
+    res[1:L, 1:L] =  correlator[L+1:2*L, 1:L]
+    res[1:L, L+1:2*L] =  correlator[L+1:2*L, L+1:2*L]
+    res[L+1:2*L, 1:L] =  correlator[1:L, 1:L]
+    res[L+1:2*L, L+1:2*L] =  correlator[1:L, L+1:2*L]
+    return res
+end
+
+gsign = [-1.0, -1.0, +1.0, -1.0]
+
+function computeTwoPionCorrelationFunction(sfile, data::Data, gDinv)
+
+    groups = createdatasets(sfile)
+    reset_data(data)
+
+    MC = [zeros(complex(Float64),2*NL0,2*NL0) for i=1:2*abspmax+1]
+    MR = [zeros(complex(Float64),2*NL0,2*NL0) for i=1:4*Onum]
+    Cginifin = [zeros(complex(Float64),2*NL0,2*NL0) for i=1:3]
+    Cgfinini = [zeros(complex(Float64),2*NL0,2*NL0) for i=1:3]
+    Cginiini = [zeros(complex(Float64),2*NL0,2*NL0) for i=1:3]
+
     L = NL0
     T = NT0
 
-    Threads.@threads for tini in 1:NT0
-        for tend in 1:NT0
-            correlator[abspmax+1, tini, tend, 1:L, 1:L] = corrws.invgD[1][1 + L * (tini-1) : L * (tini), 1 + L * (tend-1) : L * (tend)]
-            correlator[abspmax+1, tini, tend, L+1:2*L, 1:L] = corrws.invgD[1][1 + L * (tini-1) + L*T : L * (tini) + L*T, 1 + L * (tend-1) : L * (tend)]
-            correlator[abspmax+1, tini, tend, 1:L, L+1:2*L] = corrws.invgD[1][1 + L * (tini-1) : L * (tini), 1 + L * (tend-1) + L*T : L * (tend) + L*T]
-            correlator[abspmax+1, tini, tend, L+1:2*L, L+1:2*L] = corrws.invgD[1][1 + L * (tini-1) + L*T : L * (tini) + L*T, 1 + L * (tend-1) + L*T : L * (tend) + L*T]
+    for dt in 0:NT0-1
+        reset_data_singleT(data)
+        for tini in 1:tstep:NT0
+            tfin = (tini + dt - 1) % T + 1
+            cinifin = getcorrelator(gDinv, tini, tfin)
+            cfinini = getcorrelator(gDinv, tfin, tini)
+
+            Cginifin[1] = gammaIg5g0(cinifin)
+            Cginifin[2] = gammaId(cinifin)
+            Cginifin[3] = gammaIg0(cinifin)
+
+            Cgfinini[1] = gammaIg5g0(cfinini)
+            Cgfinini[2] = gammaId(cfinini)
+            Cgfinini[3] = gammaIg0(cfinini)
+
+            MC[1+abspmax] = cfinini * cinifin
+            pold = 0
+            for p in 1:abspmax
+                cinifin = multiplyPhaseLeft(cinifin, p - pold)
+                MC[1+abspmax+p] = cfinini * cinifin
+                cinifin = multiplyPhaseLeft(cinifin, -2*p)
+                MC[1+abspmax-p] = cfinini * cinifin
+                pold = -p
+            end
+            cinifin = multiplyPhaseLeft(cinifin, - pold)
+
+            pold = zeros(Float64, 2*abspmax+2)
+            for ptot in 0:Pmax
+                id = 1
+                for ini in 1:Onum
+                    k1 = mom_comb[ptot+1,ini,1]
+                    k2 = mom_comb[ptot+1,ini,2]
+
+                    if k1 == k2
+                        aux = copy(MC[abspmax+1-k1])
+                        pold[2*abspmax+2] = pold[abspmax+1-k1]
+                    end
+
+                    for fin in 1:2*Onum
+                        p1 = mom_comb[ptot+1,(fin-1)%Onum + 1,fin <= Onum ? 1 : 2]
+                        p2 = mom_comb[ptot+1,(fin-1)%Onum + 1,fin <= Onum ? 2 : 1]
+                        if fin > Onum && p1 == p2
+                            continue
+                        end
+
+                        MC[abspmax+1-k1] = multiplyPhaseRight(MC[abspmax+1-k1], p1-pold[abspmax+1-k1])
+                        if k1 != k2
+                            MC[abspmax+1-k2] = multiplyPhaseRight(MC[abspmax+1-k2], p2-pold[abspmax+1-k2])
+                            data.D[ptot+1,id] += LinearAlgebra.tr(MC[abspmax+1-k1]) * LinearAlgebra.tr(MC[abspmax+1-k2]) / (T/tstep)
+                            data.C[ptot+1,id] += sum(transpose(MC[abspmax+1-k1]) .* (MC[abspmax+1-k2])) / (T/tstep)
+                            pold[abspmax+1-k2] = p2
+                        else
+                            aux = multiplyPhaseRight(aux, p2-pold[2*abspmax+2])
+                            data.D[ptot+1,id] += LinearAlgebra.tr(MC[abspmax+1-k1]) * LinearAlgebra.tr(aux) / (T/tstep)
+                            data.C[ptot+1,id] += sum(transpose(MC[abspmax+1-k1]) .* (aux)) / (T/tstep)
+                            pold[2*abspmax+2] = p2
+                        end
+                        pold[abspmax+1-k1] = p1
+                        id += 1
+                    end
+                end
+            end
+
+            ciniini = getcorrelator(gDinv, tini, tini)
+            cfinfin = getcorrelator(gDinv, tfin, tfin)
+            auxiniini = copy(ciniini)
+            auxfinfin = copy(cfinfin)
+
+            Cginiini[1] = gammaIg5g0(ciniini)
+            Cginiini[2] = gammaId(ciniini)
+            Cginiini[3] = gammaIg0(ciniini)
+
+
+
+            ptotold = 0
+            ptotold2 = 0
+            for ptot in 0:Pmax
+                id = 1
+
+                k1old = 0
+                k2old = 0
+                for o in 1:2*Onum
+                    q1 = mom_comb[ptot+1,(o-1)%Onum + 1,o <= Onum ? 1 : 2]
+                    q2 = mom_comb[ptot+1,(o-1)%Onum + 1,o <= Onum ? 2 : 1]
+
+                    ciniini = multiplyPhaseRight(ciniini, k1old - q1)
+                    ciniini = multiplyPhaseLeft(ciniini, k2old - q2)
+                    MR[2*o-1] = ciniini * cinifin
+                    k1old = q1
+                    k2old = q2
+                    if o <= Onum
+                        if dt == 0
+                            data.Vini[ptot+1,o,tini] = sum(transpose(ciniini) .* (auxiniini))
+                        end
+                    end
+                    if o == 1 && dt == 0
+                        data.Bini[ptot+1,1,tini] = LinearAlgebra.tr(ciniini)
+                    end
+                end
+                ciniini = multiplyPhaseRight(ciniini, k1old)
+                ciniini = multiplyPhaseLeft(ciniini, k2old)
+
+                p1old = 0
+                p2old = 0
+                for o in 1:2*Onum
+                    q1 = mom_comb[ptot+1,(o-1)%Onum + 1,o <= Onum ? 1 : 2]
+                    q2 = mom_comb[ptot+1,(o-1)%Onum + 1,o <= Onum ? 2 : 1]
+                    cfinfin = multiplyPhaseRight(cfinfin, q2 - p2old)
+                    cfinfin = multiplyPhaseLeft(cfinfin, q1 - p1old)
+                    MR[2*o] = cfinfin * cfinini
+                    p1old = q1
+                    p2old = q2
+                    if o <= Onum
+                        if tini == 1
+                            data.Vfin[ptot+1,o, tfin] = sum(transpose(cfinfin) .* (auxfinfin))
+                        end
+                    end
+                    if o == 1 && dt == 0
+                        data.Bfin[ptot+1,1,tini] = LinearAlgebra.tr(cfinfin)
+                    end
+                end
+                cfinfin = multiplyPhaseRight(cfinfin, - p2old)
+                cfinfin = multiplyPhaseLeft(cfinfin, - p1old)
+
+
+                for ini in 1:Onum
+                    for fin in 1:2*Onum
+                        p1 = mom_comb[ptot+1,(fin-1)%Onum + 1,fin <= Onum ? 1 : 2]
+                        p2 = mom_comb[ptot+1,(fin-1)%Onum + 1,fin <= Onum ? 2 : 1]
+                        if fin > Onum && p1 == p2
+                            continue
+                        end
+                        data.R[ptot+1,id] += sum(transpose(MR[ini*2-1]) .* (MR[fin*2])) / (T/tstep)
+                        id += 1
+                    end
+                end
+
+                cfinini = multiplyPhaseLeft(cfinini, ptot)
+                Cgfinini[1] = multiplyPhaseLeft(Cgfinini[1], ptot - ptotold)
+                Cgfinini[2] = multiplyPhaseLeft(Cgfinini[2], ptot - ptotold)
+                Cgfinini[3] = multiplyPhaseLeft(Cgfinini[3], ptot - ptotold)
+                cinifin = multiplyPhaseLeft(cinifin, - ptot)
+                Cginifin[1] = multiplyPhaseLeft(Cginifin[1], - ptot + ptotold)
+                Cginifin[2] = multiplyPhaseLeft(Cginifin[2], - ptot + ptotold)
+                Cginifin[3] = multiplyPhaseLeft(Cginifin[3], - ptot + ptotold)
+                ptotold = ptot
+
+                for o in 1:2*Onum
+                    data.Tini[ptot + 1, 1, o] += gsign[1] * sum(transpose(MR[2*o]) .* (cinifin)) / (T/tstep)
+                    data.Tini[ptot + 1, 2, o] += gsign[2] * sum(transpose(MR[2*o]) .* (Cginifin[1])) / (T/tstep)
+                    data.Tini[ptot + 1, 3, o] += gsign[3] * sum(transpose(MR[2*o]) .* (Cginifin[2])) / (T/tstep)
+                    data.Tini[ptot + 1, 4, o] += gsign[4] * sum(transpose(MR[2*o]) .* (Cginifin[3])) / (T/tstep)
+
+                    data.Tfin[ptot + 1, 1, o] += sum(transpose(MR[2*o-1]) .* (cfinini)) / (T/tstep)
+                    data.Tfin[ptot + 1, 2, o] += sum(transpose(MR[2*o-1]) .* (Cgfinini[1])) / (T/tstep)
+                    data.Tfin[ptot + 1, 3, o] += sum(transpose(MR[2*o-1]) .* (Cgfinini[2])) / (T/tstep)
+                    data.Tfin[ptot + 1, 4, o] += sum(transpose(MR[2*o-1]) .* (Cgfinini[3])) / (T/tstep)
+                end
+
+                data.P[ptot+1, 1, 1] += gsign[1] * sum(transpose(cfinini) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 2] += gsign[1] * sum(transpose(Cgfinini[1]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 3] += gsign[1] * sum(transpose(Cgfinini[2]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 4] += gsign[1] * sum(transpose(Cgfinini[3]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 2, 1] += gsign[2] * sum(transpose(cfinini) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 2] += gsign[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 3] += gsign[2] * sum(transpose(Cgfinini[2]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 4] += gsign[2] * sum(transpose(Cgfinini[3]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 3, 1] += gsign[3] * sum(transpose(cfinini) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 2] += gsign[3] * sum(transpose(Cgfinini[1]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 3] += gsign[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 4] += gsign[3] * sum(transpose(Cgfinini[3]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 4, 1] += gsign[4] * sum(transpose(cfinini) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 2] += gsign[4] * sum(transpose(Cgfinini[1]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 3] += gsign[4] * sum(transpose(Cgfinini[2]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 4] += gsign[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[3])) / (T/tstep)
+
+                cfinini = multiplyPhaseLeft(cfinini, -ptot)
+                cinifin = multiplyPhaseLeft(cinifin, ptot)
+
+                if dt == 0
+                    for g in 1:3
+                        Cginiini[g] = multiplyPhaseLeft(Cginiini[g], ptot - ptotold2)
+                        data.Bfin[ptot+1,g+1,tini] += LinearAlgebra.tr(Cginiini[g])
+                        Cginiini[g] = multiplyPhaseLeft(Cginiini[g], -2*ptot)
+                        data.Bini[ptot+1,g+1,tini] += gsign[g+1] * LinearAlgebra.tr(Cginiini[g])
+                    end
+                    ptotold2 = -ptot
+                end
+            end
+
+            ptotold3 = 0
+            for ptot in Pmax+1:abspmax
+
+                cfinini = multiplyPhaseLeft(cfinini, ptot - ptotold3)
+                Cgfinini[1] = multiplyPhaseLeft(Cgfinini[1], ptot - ptotold)
+                Cgfinini[2] = multiplyPhaseLeft(Cgfinini[2], ptot - ptotold)
+                Cgfinini[3] = multiplyPhaseLeft(Cgfinini[3], ptot - ptotold)
+                cinifin = multiplyPhaseLeft(cinifin, - ptot + ptotold3)
+                Cginifin[1] = multiplyPhaseLeft(Cginifin[1], - ptot + ptotold)
+                Cginifin[2] = multiplyPhaseLeft(Cginifin[2], - ptot + ptotold)
+                Cginifin[3] = multiplyPhaseLeft(Cginifin[3], - ptot + ptotold)
+                ptotold = ptot
+                ptotold3 = ptot
+
+                data.P[ptot+1, 1, 1] += gsign[1] * sum(transpose(cfinini) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 2] += gsign[1] * sum(transpose(Cgfinini[1]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 3] += gsign[1] * sum(transpose(Cgfinini[2]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 4] += gsign[1] * sum(transpose(Cgfinini[3]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 2, 1] += gsign[2] * sum(transpose(cfinini) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 2] += gsign[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 3] += gsign[2] * sum(transpose(Cgfinini[2]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 4] += gsign[2] * sum(transpose(Cgfinini[3]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 3, 1] += gsign[3] * sum(transpose(cfinini) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 2] += gsign[3] * sum(transpose(Cgfinini[1]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 3] += gsign[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 4] += gsign[3] * sum(transpose(Cgfinini[3]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 4, 1] += gsign[4] * sum(transpose(cfinini) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 2] += gsign[4] * sum(transpose(Cgfinini[1]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 3] += gsign[4] * sum(transpose(Cgfinini[2]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 4] += gsign[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[3])) / (T/tstep)
+
+                if dt == 0
+                    ciniini = multiplyPhaseLeft(ciniini, ptot - ptotold2)
+                    data.Bfin[ptot+1,1,tini] += LinearAlgebra.tr(ciniini)
+                    ciniini = multiplyPhaseLeft(ciniini, -2*ptot)
+                    data.Bini[ptot+1,1,tini] += gsign[1] * LinearAlgebra.tr(ciniini)
+                    for g in 1:3
+                        Cginiini[g] = multiplyPhaseLeft(Cginiini[g], ptot - ptotold2)
+                        data.Bfin[ptot+1,g+1,tini] += LinearAlgebra.tr(Cginiini[g])
+                        Cginiini[g] = multiplyPhaseLeft(Cginiini[g], -2*ptot)
+                        data.Bini[ptot+1,g+1,tini] += gsign[g+1] * LinearAlgebra.tr(Cginiini[g])
+                    end
+                    ptotold2 = -ptot
+                end
+            end
+            if dt == 0
+                ciniini = multiplyPhaseLeft(ciniini, - ptotold2)
+            end
+            cfinini = multiplyPhaseLeft(cfinini, - ptotold)
+            cinifin = multiplyPhaseLeft(cinifin, ptotold)
+
         end
+        save_singletconnected(data, sfile, dt)
     end
-    corrws = nothing
+    save_allt(data, sfile)
 
-    multiplyAllMomenta(correlator)
-
-    for p in -abspmax:abspmax
-        Threads.@threads for tini in 1:NT0
-            for tend in 1:NT0
-                MR[p+1+abspmax,tini,tend,:,:] = correlator[1+abspmax, tini, tini, :, :] * correlator[1+abspmax+p, tini, tend, :, :]
+    for dt in 0:NT0-1
+        reset_data_singleT(data)
+        for tini in 1:tstep:NT0
+            tfin = (tini + dt - 1) % T + 1
+            for ptot in 0:Pmax
+                id = 1
+                for ini in 1:Onum
+                    for fin in 1:Onum
+                        data.VV[ptot+1,id] += data.Vini[ptot+1,ini,tini] * data.Vfin[ptot+1,fin,tfin] / (T/tstep)
+                        id += 1
+                    end
+                    for g in 1:4
+                        data.Tdisini[ptot+1,g,ini] += data.Bini[ptot+1,g,tini] * data.Vfin[ptot+1,ini,tfin] / (T/tstep)
+                        data.Tdisfin[ptot+1,g,ini] += data.Bfin[ptot+1,g,tfin] * data.Vini[ptot+1,ini,tini] / (T/tstep)
+                    end
+                end
+            end
+            for ptot in 0:abspmax
+                for g1 in 1:4
+                    for g2 in 1:4
+                        data.BB[ptot+1,g1,g2] += data.Bini[ptot+1,g1,tini] * data.Bfin[ptot+1,g2,tfin] / (T/tstep)
+                    end
+                end
             end
         end
+        save_singletdisconnected(data, sfile, dt)
     end
-
-    # Euclidean gamma matrices convention:
-    # gamma_0 = [0 -I; I 0]
-    # gamma_1 = [0 1; 1 0]
-    # gamma_5 = [1 0; 0 -1]
-    for P in -abspmax:abspmax
-        Threads.@threads for tini in 1:NT0
-            for tend in 1:NT0
-                g5_correlator[P+1+abspmax, tini, tend, 1:L, 1:L] = correlator[P+abspmax+1, tini, tend, 1:L, 1:L]
-                g5_correlator[P+1+abspmax, tini, tend, L+1:2*L, 1:L] = -correlator[P+abspmax+1, tini, tend, L+1:2*L, 1:L]
-                g5_correlator[P+1+abspmax, tini, tend, 1:L, L+1:2*L] = correlator[P+abspmax+1, tini, tend, 1:L, L+1:2*L]
-                g5_correlator[P+1+abspmax, tini, tend, L+1:2*L, L+1:2*L] = -correlator[P+abspmax+1, tini, tend, L+1:2*L, L+1:2*L]
-            end
-        end
-    end
-
-    all_correlators1(correlator, g5_correlator, MR, data, u1ws, Pmax, Onum, abspmax, mom_comb, phases)
-
-    g5_correlator = zeros(complex(Float64), 0, 0, 0, 0, 0)
-    mIg0_correlator = zeros(complex(Float64), 2*abspmax+1, NT0, NT0, NL0*2, NL0*2)
-
-    for P in -abspmax:abspmax
-        Threads.@threads for tini in 1:NT0
-            for tend in 1:NT0
-                mIg0_correlator[P+1+abspmax, tini, tend, 1:L, 1:L] = correlator[P+abspmax+1, tini, tend, L+1:2*L, 1:L]
-                mIg0_correlator[P+1+abspmax, tini, tend, L+1:2*L, 1:L] = - correlator[P+abspmax+1, tini, tend, 1:L, 1:L]
-                mIg0_correlator[P+1+abspmax, tini, tend, 1:L, L+1:2*L] = correlator[P+abspmax+1, tini, tend, L+1:2*L, L+1:2*L]
-                mIg0_correlator[P+1+abspmax, tini, tend, L+1:2*L, L+1:2*L] = - correlator[P+abspmax+1, tini, tend, 1:L, L+1:2*L]
-            end
-        end
-    end
-
-    all_correlators3(correlator, mIg0_correlator, MR, data, u1ws, Pmax, Onum, abspmax, mom_comb, phases)
-
-    mIg0_correlator = zeros(complex(Float64), 0, 0, 0, 0, 0)
-    MR = zeros(complex(Float64), 0, 0, 0, 0, 0)
-    MC = zeros(complex(Float64), 2*abspmax+1, NT0, NT0, NL0*2, NL0*2)
-
-    for p in -abspmax:abspmax
-        Threads.@threads for tini in 1:NT0
-            for tend in 1:NT0
-                MC[p+1+abspmax,tini,tend,:,:] = correlator[1+abspmax, tini, tend, :, :] * correlator[1+abspmax+p, tend, tini, :, :]
-            end
-        end
-    end
-
-    all_correlators2(MC, data, u1ws, Pmax, Onum, abspmax, mom_comb, phases)
 
     return nothing
 end
 
-function save_data(data::Data, dirpath, start)
+function createdatasets(sfile)
 
-    for p in -abspmax:abspmax
-        deltafile = joinpath(dirpath, "measurements$(start)/exdelta_$(p)_confs$start-$finish.txt")
-        write_vector(data.Delta[abspmax+p+1,:],deltafile)
-        deltasfile = joinpath(dirpath, "measurements$(start)/exdeltas_$(p)_confs$start-$finish.txt")
-        write_vector(data.Deltas[abspmax+p+1,:],deltasfile)
-    end
+    gP = create_group(sfile, "P")
+    gBB = create_group(sfile, "BB")
+    gVV = create_group(sfile, "VV")
+    gR = create_group(sfile, "R")
+    gC = create_group(sfile, "C")
+    gD = create_group(sfile, "D")
+    gTini = create_group(sfile, "Tini")
+    gTdisini = create_group(sfile, "Tdisini")
+    gTfin = create_group(sfile, "Tfin")
+    gTdisfin = create_group(sfile, "Tdisfin")
+
     for p in 0:abspmax
-        connfile = joinpath(dirpath,"measurements$(start)/exconn_$(p)_confs$start-$finish.txt")
-        write_vector(data.P[p+1,:],connfile)
-        connfiler = joinpath(dirpath,"measurements$(start)/exconn_rho_$(p)_confs$start-$finish.txt")
-        write_vector(data.Pr[p+1,:],connfiler)
-        connfiles = joinpath(dirpath,"measurements$(start)/exconn_sigma_$(p)_confs$start-$finish.txt")
-        write_vector(data.Ps[p+1,:],connfiles)
-        discfile = joinpath(dirpath, "measurements$(start)/exdisc_$(p)_confs$start-$finish.txt")
-        write_vector(data.disc[p+1,:],discfile)
-        discfiles = joinpath(dirpath, "measurements$(start)/exdisc_sigma_$(p)_confs$start-$finish.txt")
-        write_vector(data.discs[p+1,:],discfiles)
+        gPmom = create_group(gP, "P$(p)")
+        gBBmom = create_group(gBB, "P$(p)")
+        for g1 in 1:4
+            for g2 in 1:4
+                create_dataset(gPmom, "mini$(g1)_mfin$(g2)", complex(Float64), NT0)
+                create_dataset(gBBmom, "mini$(g1)_mfin$(g2)", complex(Float64), NT0)
+            end
+        end
     end
 
-    for P in 0:Pmax
-        id = 1
-        for ini in 1:Onum
-            q1 = mom_comb[P+1,ini,1]
-            q2 = mom_comb[P+1,ini,2]
-            for fin in 1:Onum
-                p1 = mom_comb[P+1,fin,1]
-                p2 = mom_comb[P+1,fin,2]
 
-                Dfile = joinpath(dirpath, "measurements$(start)/exD_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                VVfile = joinpath(dirpath, "measurements$(start)/exVV_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                Cfile = joinpath(dirpath, "measurements$(start)/exC_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                Rfile = joinpath(dirpath, "measurements$(start)/exR_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-
-                write_vector(data.R[P+1, id, :],Rfile)
-                write_vector(data.C[P+1, id, :],Cfile)
-                write_vector(data.D[P+1, id, :],Dfile)
-                write_vector(data.VV[P+1, (ini-1)*Onum+fin, :],VVfile)
-
-                id += 1
-                if p1 == p2
+    for p in 0:Pmax
+        gVVmom = create_group(gVV, "P$(p)")
+        gRmom = create_group(gR, "P$(p)")
+        gCmom = create_group(gC, "P$(p)")
+        gDmom = create_group(gD, "P$(p)")
+        gTinimom = create_group(gTini, "P$(p)")
+        gTdisinimom = create_group(gTdisini, "P$(p)")
+        gTfinmom = create_group(gTfin, "P$(p)")
+        gTdisfinmom = create_group(gTdisfin, "P$(p)")
+        for ini in 1:2*Onum
+            k1 = mom_comb[p+1,(ini-1)%Onum + 1,ini <= Onum ? 1 : 2]
+            k2 = mom_comb[p+1,(ini-1)%Onum + 1,ini <= Onum ? 2 : 1]
+            if ini > Onum && k1 == k2
+                continue
+            end
+            for fin in 1:2*Onum
+                p1 = mom_comb[p+1,(fin-1)%Onum + 1,fin <= Onum ? 1 : 2]
+                p2 = mom_comb[p+1,(fin-1)%Onum + 1,fin <= Onum ? 2 : 1]
+                if fin > Onum && p1 == p2
                     continue
                 end
 
-                p2 = mom_comb[P+1,fin,1]
-                p1 = mom_comb[P+1,fin,2]
-
-                Dfile = joinpath(dirpath, "measurements$(start)/exD_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                Cfile = joinpath(dirpath, "measurements$(start)/exC_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-                Rfile = joinpath(dirpath, "measurements$(start)/exR_P$(P)_ini_$(q1)_$(q2)_fin_$(p1)_$(p2)_confs$start-$finish.txt")
-
-                write_vector(data.R[P+1, id, :],Rfile)
-                write_vector(data.C[P+1, id, :],Cfile)
-                write_vector(data.D[P+1, id, :],Dfile)
-
-                id += 1
+                if ini <= Onum
+                    create_dataset(gRmom, "ini_$(k1)_$(k2)_fin_$(p1)_$(p2)", complex(Float64), NT0)
+                    create_dataset(gDmom, "ini_$(k1)_$(k2)_fin_$(p1)_$(p2)", complex(Float64), NT0)
+                    create_dataset(gCmom, "ini_$(k1)_$(k2)_fin_$(p1)_$(p2)", complex(Float64), NT0)
+                    if fin <= Onum
+                        create_dataset(gVVmom, "ini_$(k1)_$(k2)_fin_$(p1)_$(p2)", complex(Float64), NT0)
+                    end
+                end
             end
 
+            for g in 1:4
+                create_dataset(gTinimom, "mini$(g)_fin_$(k1)_$(k2)", complex(Float64), NT0)
+                create_dataset(gTdisinimom, "mini$(g)_fin_$(k1)_$(k2)", complex(Float64), NT0)
+                create_dataset(gTfinmom, "ini_$(k1)_$(k2)_mfin$(g)", complex(Float64), NT0)
+                create_dataset(gTdisfinmom, "ini_$(k1)_$(k2)_mfin$(g)", complex(Float64), NT0)
+            end
         end
+    end
 
+    return nothing
+end
+
+function save_singletconnected(data, sfile, t)
+
+    for p in 0:abspmax
+        for g1 in 1:4
+            for g2 in 1:4
+                sfile["P/P$(p)/mini$(g1)_mfin$(g2)"][t+1] = data.P[p+1,g1,g2]
+            end
+        end
+    end
+
+
+    for p in 0:Pmax
         id = 1
-        for op in 1:Onum
-            q1 = mom_comb[P+1,op,1]
-            q2 = mom_comb[P+1,op,2]
-
-            Vfile = joinpath(dirpath, "measurements$(start)/exVini_P$(P)_mom_$(q1)_$(q2)_confs$start-$finish.txt")
-            write_vector(data.Vini[P+1, op, :],Vfile)
-
-            Vfile = joinpath(dirpath, "measurements$(start)/exVfin_P$(P)_mom_$(q1)_$(q2)_confs$start-$finish.txt")
-            write_vector(data.Vfin[P+1, op, :],Vfile)
-
-            Tsinifile = joinpath(dirpath, "measurements$(start)/exTsini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Tsinidisfile = joinpath(dirpath, "measurements$(start)/exTsinidis_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Trinifile = joinpath(dirpath, "measurements$(start)/exTrini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Tsfinfile = joinpath(dirpath, "measurements$(start)/exTsfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
-            Tsfindisfile = joinpath(dirpath, "measurements$(start)/exTsfindis_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
-            Trfinfile = joinpath(dirpath, "measurements$(start)/exTrfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
-
-            write_vector(data.Tsini[P+1, id, :],Tsinifile)
-            write_vector(data.Tsinidis[P+1, op, :],Tsinidisfile)
-            write_vector(data.Trini[P+1, id, :],Trinifile)
-            write_vector(data.Tsfin[P+1, id, :],Tsfinfile)
-            write_vector(data.Tsfindis[P+1, op, :],Tsfindisfile)
-            write_vector(data.Trfin[P+1, id, :],Trfinfile)
-
-            id += 1
-            if q1 == q2
+        for ini in 1:2*Onum
+            k1 = mom_comb[p+1,(ini-1)%Onum + 1,ini <= Onum ? 1 : 2]
+            k2 = mom_comb[p+1,(ini-1)%Onum + 1,ini <= Onum ? 2 : 1]
+            if ini > Onum && k1 == k2
                 continue
             end
+            for fin in 1:2*Onum
+                p1 = mom_comb[p+1,(fin-1)%Onum + 1,fin <= Onum ? 1 : 2]
+                p2 = mom_comb[p+1,(fin-1)%Onum + 1,fin <= Onum ? 2 : 1]
+                if fin > Onum && p1 == p2
+                    continue
+                end
 
-            q2 = mom_comb[P+1,op,1]
-            q1 = mom_comb[P+1,op,2]
+                if ini <= Onum
+                    sfile["R/P$(p)/ini_$(k1)_$(k2)_fin_$(p1)_$(p2)"][t+1] = data.R[p+1,id]
+                    sfile["D/P$(p)/ini_$(k1)_$(k2)_fin_$(p1)_$(p2)"][t+1] = data.D[p+1,id]
+                    sfile["C/P$(p)/ini_$(k1)_$(k2)_fin_$(p1)_$(p2)"][t+1] = data.C[p+1,id]
+                    id += 1
+                end
+            end
 
-            Tsinifile = joinpath(dirpath, "measurements$(start)/exTsini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Trinifile = joinpath(dirpath, "measurements$(start)/exTrini_P$(P)_fin_$(q1)_$(q2)_confs$start-$finish.txt")
-            Tsfinfile = joinpath(dirpath, "measurements$(start)/exTsfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
-            Trfinfile = joinpath(dirpath, "measurements$(start)/exTrfin_P$(P)_ini_$(q1)_$(q2)_confs$start-$finish.txt")
-
-            write_vector(data.Tsini[P+1, id, :],Tsinifile)
-            write_vector(data.Trini[P+1, id, :],Trinifile)
-            write_vector(data.Tsfin[P+1, id, :],Tsfinfile)
-            write_vector(data.Trfin[P+1, id, :],Trfinfile)
-
-            id += 1
+            for g in 1:4
+                sfile["Tini/P$(p)/mini$(g)_fin_$(k1)_$(k2)"][t+1] = data.Tini[p+1,g,ini]
+                sfile["Tfin/P$(p)/ini_$(k1)_$(k2)_mfin$(g)"][t+1] = data.Tfin[p+1,g,ini]
+            end
         end
     end
+
+    return nothing
 end
 
-# function correlators(data::Data, corrws::U1exCorrelator, u1ws)
-#     reset_data(data)
-#     for ifl in 1:2
-#         ex_disconnected_correlator(corrws, u1ws, ifl)
-#         data.Delta[ifl,:] .+= corrws.result
-#         for jfl in 1:2
-#             for it in 1:N0
-#                 ex_connected_correlator(corrws, u1ws, it, ifl, jfl)
-#                 for t in 1:N0
-#                     tt=((t-it+N0)%N0+1);
-#                     data.P[ifl,jfl,tt] += corrws.result[t] / N0
-#                 end
-#             end
-#         end
-#     end
-#     compute_disconnected!(data)
-#     return nothing
-# end
-#
-# """
-# Compute all combinations of disconnected traces and save them to data.disc[ifl, jfl, t]
-# """
-# function compute_disconnected!(data::Data)
-#     data.disc .= 0.0
-#     for ifl in 1:2, jfl in ifl:2
-#         for t in 1:N0, tt in 1:N0
-#             data.disc[ifl, jfl, t] += data.Delta[ifl, tt] * data.Delta[jfl, (tt+t-1-1)%N0+1] / N0
-#         end
-#     end
-#     return nothing
-# end
-#
-# function save_data(data::Data, dirpath)
-#     for ifl in 1:2
-#         deltafile = joinpath(dirpath, "measurements$(start)/exdelta-$(ifl)_confs$start-$finish.txt")
-#         write_vector(data.Delta[ifl, :],deltafile)
-#         for jfl in ifl:2
-#             connfile = joinpath(dirpath,"measurements$(start)/exconn-$ifl$(jfl)_confs$start-$finish.txt")
-#             discfile = joinpath(dirpath, "measurements$(start)/exdisc-$ifl$(jfl)_confs$start-$finish.txt")
-#             write_vector(data.P[ifl, jfl, :],connfile)
-#             write_vector(data.disc[ifl, jfl, :],discfile)
-#         end
-#     end
-# end
+function save_singletdisconnected(data, sfile, t)
 
-function save_topcharge(model, dirpath, start)
-    qfile = joinpath(dirpath,"measurements$(start)/topcharge_confs$start-$finish.txt")
-    global io_stat = open(qfile, "a")
-    write(io_stat, "$(top_charge(model))\n")
-    close(io_stat)
-end
-
-function write_vector(vec, filepath)
-    global io_stat = open(filepath, "a")
-    write(io_stat, "$(vec[1])")
-    for i in 2:length(vec)
-        write(io_stat, ", $(vec[i])")
+    for p in 0:abspmax
+        for g1 in 1:4
+            for g2 in 1:4
+                sfile["BB/P$(p)/mini$(g1)_mfin$(g2)"][t+1] = data.BB[p+1,g1,g2]
+            end
+        end
     end
-    write(io_stat, "\n")
-    close(io_stat)
+
+
+    for p in 0:Pmax
+        id = 1
+        for ini in 1:Onum
+            k1 = mom_comb[p+1,(ini-1)%Onum + 1,ini <= Onum ? 1 : 2]
+            k2 = mom_comb[p+1,(ini-1)%Onum + 1,ini <= Onum ? 2 : 1]
+            for fin in 1:Onum
+                p1 = mom_comb[p+1,(fin-1)%Onum + 1,fin <= Onum ? 1 : 2]
+                p2 = mom_comb[p+1,(fin-1)%Onum + 1,fin <= Onum ? 2 : 1]
+                sfile["VV/P$(p)/ini_$(k1)_$(k2)_fin_$(p1)_$(p2)"][t+1] = data.VV[p+1,id]
+                id += 1
+            end
+            for g in 1:4
+                sfile["Tdisini/P$(p)/mini$(g)_fin_$(k1)_$(k2)"][t+1] = data.Tdisini[p+1,g,ini]
+                sfile["Tdisfin/P$(p)/ini_$(k1)_$(k2)_mfin$(g)"][t+1] = data.Tdisfin[p+1,g,ini]
+            end
+        end
+    end
+
+    return nothing
+end
+
+function save_allt(data::Data, sfile)
+
+    gBini = create_group(sfile, "Bini")
+    gBfin = create_group(sfile, "Bfin")
+
+    for p in 0:abspmax
+        gBinimom = create_group(gBini, "P$(p)")
+        gBfinmom = create_group(gBfin, "P$(p)")
+        for g in 1:4
+            write_dataset(gBinimom, "mini$(g)", data.Bini[p+1, g, :])
+            write_dataset(gBfinmom, "mfin$(g)", data.Bfin[p+1, g, :])
+        end
+    end
+
+    gVini = create_group(sfile, "Vini")
+    gVfin = create_group(sfile, "Vfin")
+
+    for p in 0:Pmax
+        gVinimom = create_group(gVini, "P$(p)")
+        gVfinmom = create_group(gVfin, "P$(p)")
+        for ini in 1:Onum
+            k1 = mom_comb[p+1,ini,1]
+            k2 = mom_comb[p+1,ini,2]
+            write_dataset(gVinimom, "ini_$(k1)_$(k2)", data.Vini[p+1,ini,:])
+            write_dataset(gVfinmom, "fin_$(k1)_$(k2)", data.Vini[p+1,ini,:])
+        end
+    end
+
     return nothing
 end
 
 
-pws =  U1exCorrelator(model, wdir=dirname(cfile))
+function save_topcharge(model, sfile)
+    write_dataset(sfile, "top_charge", top_charge(model))
+end
+
+# function write_vector(vec, filepath)
+#     global io_stat = open(filepath, "a")
+#     write(io_stat, "$(vec[1])")
+#     for i in 2:length(vec)
+#         write(io_stat, ", $(vec[i])")
+#     end
+#     write(io_stat, "\n")
+#     close(io_stat)
+#     return nothing
+# end
+
+
+# pws =  U1exCorrelator(model, wdir=dirname(cfile))
 for i in start:finish
     @time begin
+        fb, model = read_cnfg_info(cfile, U1Nf2)
         if i == start && start != 1
             LFTSampling.read_cnfg_n(fb, start, model)
         else
             read_next_cnfg(fb, model)
         end
-#         model.U .= 1
+        model.U .= 1
 #         random_gauge_trafo(model)
-        construct_invgD!(pws, model)
-        computeTwoPionCorrelationFunction(data, pws, model)
-        save_data(data, dirname(cfile), start)
-        save_topcharge(model, spath, start)
+        sfile = h5open(joinpath(spath, "measurements$(i).h5"), "w")
+        save_topcharge(model, sfile)
+        gDinv = construct_invgD_inplace!(model,1)
+        model = Nothing
+        computeTwoPionCorrelationFunction(sfile, data, gDinv)
+        close(sfile)
+        close(fb)
     end
 end
-close(fb)
-
-
 
