@@ -286,7 +286,7 @@ Constructs the inverse of γ₅D for flavor `ifl` in place, without extra memory
 """
 
 function construct_invgD_inplace!(u1ws::U1Nf2, ifl)
-    pws =  U1exCorrelator(model)
+    pws =  U1exCorrelator(u1ws)
     construct_gD!(pws, u1ws, u1ws.params.am0[ifl])
     return inv(pws.gD)
 end
