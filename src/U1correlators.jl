@@ -164,15 +164,16 @@ struct U1exCorrelator <: LFTU1.AbstractU1Correlator
                                name::String = "U(1) correlator", 
                                ID::String = "excorr_pion", 
                                mesdir::String = "measurements/", 
-                               extension::String = ".txt")
+                               extension::String = ".txt",
+                               )
         dt = Dates.now()
         wdir_sufix = "_D"*Dates.format(dt, "yyyy-mm-dd-HH-MM-SS.ss")
         lp = u1ws.params
         filepath = joinpath(wdir, mesdir, ID*wdir_sufix*extension)
         V = prod((u1ws.params.iL..., 2))
         gD = LFTU1.to_device(u1ws.device, zeros(complex(Float64), V, V))
-        invgD1 = copy(gD)
-        invgD2 = copy(gD)
+        invgD1 = Nothing
+        invgD2 = Nothing
         e1 = LFTU1.to_device(u1ws.device, zeros(complex(Float64), lp.iL..., 2))
         e2 = copy(e1)
         C = zeros(Float64, lp.iL[2])
@@ -232,6 +233,9 @@ export construct_gD!
 Builds inverse of γ₅D using LinearAlgebra.inv for flavor `ifl`
 """
 function get_invgD!(corrws, u1ws, ifl)
+    if corrws.invgD[ifl] == nothing
+        corrws.invgD = copy(corrws.gD)
+    end
     corrws.invgD[ifl] .= inv(corrws.gD)
     return nothing
 end
@@ -278,7 +282,18 @@ end
 export construct_invgD!
 
 """
-Constructs the inverse of γ₅D for 2 flavors with mass `mass`. Inteded for use with U1Quenched only
+Constructs the inverse of γ₅D for flavor `ifl` in place, without extra memory allocation
+"""
+function construct_invgD_inplace!(u1ws::U1Nf, ifl)
+    pws =  U1exCorrelator(model)
+    construct_gD!(pws, u1ws, u1ws.params.am0[ifl])
+    return inv(pws.gD)
+end
+export construct_invgD_inplace!
+
+
+"""
+Constructs the inverse of γ₅D for 2 flavors with mass `mass`. Intended for use with U1Quenched only
 """
 function construct_invgD!(corrws, u1ws::U1Quenched, mass)
     for ifl in 1:2
