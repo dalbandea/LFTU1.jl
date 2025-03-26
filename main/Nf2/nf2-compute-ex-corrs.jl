@@ -741,10 +741,10 @@ end
 # end
 
 
+fb, model = read_cnfg_info(cfile, U1Nf2)
 # pws =  U1exCorrelator(model, wdir=dirname(cfile))
 for i in start:finish
     @time begin
-        fb, model = read_cnfg_info(cfile, U1Nf2)
         if i == start && start != 1
             LFTSampling.read_cnfg_n(fb, start, model)
         else
@@ -755,10 +755,10 @@ for i in start:finish
         sfile = h5open(joinpath(spath, "measurements$(i).h5"), "w")
         save_topcharge(model, sfile)
         gDinv = construct_invgD_inplace!(model,1)
-        model = Nothing
+        model.U = Nothing
         computeTwoPionCorrelationFunction(sfile, data, gDinv)
         close(sfile)
-        close(fb)
     end
 end
+close(fb)
 
