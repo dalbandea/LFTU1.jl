@@ -14,8 +14,8 @@ struct U1Correlator <: LFTU1.AbstractU1Correlator
     R
     S
     S0
-    result::Vector{Float64} # correlator
-    history::Vector{Vector{Float64}}
+    result#::Vector{Float64} # correlator
+    history#::Vector{Vector{Float64}}
     function U1Correlator(u1ws::LFTU1.U1; wdir::String = "./trash/", 
                                name::String = "U(1) correlator", 
                                ID::String = "corr_pion", 
@@ -25,11 +25,13 @@ struct U1Correlator <: LFTU1.AbstractU1Correlator
         wdir_sufix = "_D"*Dates.format(dt, "yyyy-mm-dd-HH-MM-SS.ss")
         lp = u1ws.params
         filepath = joinpath(wdir, mesdir, ID*wdir_sufix*extension)
-        R1 = LFTU1.to_device(u1ws.device, zeros(complex(Float64), lp.iL..., 2))
+        # R1 = LFTU1.to_device(u1ws.device, zeros(complex(Float64), lp.iL..., 2))
+        R1 = complex(similar(u1ws.U))
+        R1 .= 0.0
         R2 = copy(R1)
         S = copy(R1)
         S0 = copy(R1)
-        C = zeros(Float64, lp.iL[1])
+        C = zeros(typeof(u1ws.U[1]), lp.iL[1])
         history = []
         mkpath(dirname(filepath))
         return new(name, ID, filepath, [R1, R2], S, S0, C, history)
