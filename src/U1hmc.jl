@@ -57,6 +57,41 @@ KernelAbstractions.@kernel function U1_update_field!(U, mom, epsilon)
 end
 
 
+function winding_step!(Lw::Int64, U1ws::U1, samplerws::AbstractHMC)
+    ws_cp = deepcopy(U1ws)
+    
+    generate_pseudofermions!(U1ws, samplerws)
+
+    sini = action(U1ws, samplerws)
+
+    r = rand()
+
+    if r > 0.5
+        winding!(Lw, U1ws, sign = 1)
+    else
+        winding!(Lw, U1ws, sign = -1)
+    end
+
+    sfin = action(U1ws, samplerws)
+
+    ds = sfin - sini
+
+    LFTSampling.metropolis_accept_reject!(U1ws, ws_cp, ds)
+
+    return nothing
+end
+
+
+function sample!(U1ws::U1, samplerws::AbstractHMC; N_windings = 0, Lw = 0)
+    @info("- HMC step")
+    hmc!(U1ws, samplerws)
+    @info("- $N_windings winding steps")
+    for i in 1:N_windings
+        winding_step!(Lw, U1ws, samplerws)
+    end
+    return nothing
+end
+
 # ======================= #
 # ===== U1 Quenched ===== #
 # ======================= #

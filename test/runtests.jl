@@ -18,7 +18,7 @@ get_field(u1ws::LFTU1.U1) = u1ws.U
 
 @testset verbose = true "U1 tests" begin
 
-        @testset verbose = true "U1 Nf=2" begin
+        @testset verbose = true "General U1" begin
             include("u1tests.jl")
         end
 

@@ -61,6 +61,8 @@ ntherm = pdata["HMC params"]["ntherm"]
 ntraj = pdata["HMC params"]["ntraj"]
 discard = pdata["HMC params"]["discard"]
 integrator = eval(Meta.parse(pdata["HMC params"]["integrator"]))
+N_windings = pdata["HMC params"]["windings"]
+Lw = pdata["HMC params"]["Lw"]
 
 # Working directory
 
@@ -101,6 +103,8 @@ logger = SimpleLogger(logio)
 global_logger(logger)
 
 @info "U(1) NF=2 SIMULATION" model.params smplr
+@info "Number of windings: $N_windings" 
+@info "Winding size: $Lw" 
 
 if cntinue == true
     @info "Skipping thermalization"
