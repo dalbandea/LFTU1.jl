@@ -39,6 +39,11 @@ function parse_commandline(args)
         arg_type = Int
         default = 0
 
+        "--cfgsstep"
+        help = "Separation between configurations in the Markov chain"
+        required = true
+        arg_type = Int
+
         "--ens"
         help = "path to ensemble with configurations"
         required = true
@@ -105,10 +110,11 @@ NT0 % tstep == 0 || error("tstep needs to divide NT0")
 
 start = parsed_args["start"]
 ncfgs = parsed_args["nconf"]
+cfgsstep = parsed_args["cfgsstep"]
 if ncfgs == 0
     ncfgs = LFTSampling.count_configs(cfile) - start + 1
 end
-finish = start + ncfgs - 1
+finish = start + (ncfgs-1)*cfgsstep
 
 # fb, model = read_cnfg_info(cfile, U1Nf2)
 
@@ -143,36 +149,41 @@ data = (
     Vini = zeros(complex(Float64), Pmax + 1, Onum, NT0),
     Vfin = zeros(complex(Float64), Pmax + 1, Onum, NT0),
     VV = zeros(complex(Float64), Pmax + 1, Onum^2*2),
-    R = zeros(complex(Float64), Pmax + 1, Onum^2*2),
-    C = zeros(complex(Float64), Pmax + 1, Onum^2*2),
-    D = zeros(complex(Float64), Pmax + 1, Onum^2*2),
-    Tini = zeros(complex(Float64), Pmax + 1, 4, Onum*2),
+    R = zeros(complex(Float64), Pmax + 1, Onum^2*2, NT0),
+    C = zeros(complex(Float64), Pmax + 1, Onum^2*2, NT0),
+    D = zeros(complex(Float64), Pmax + 1, Onum^2*2, NT0),
+    Tini = zeros(complex(Float64), Pmax + 1, 4, Onum*2, NT0),
     Tdisini = zeros(complex(Float64), Pmax + 1, 4, Onum),
-    Tfin = zeros(complex(Float64), Pmax + 1, 4, Onum*2),
+    Tfin = zeros(complex(Float64), Pmax + 1, 4, Onum*2, NT0),
     Tdisfin = zeros(complex(Float64), Pmax + 1, 4, Onum),
     )
 Data = typeof(data)
 
 function reset_data(data::Data)
-   reset_data_singleT(data)
-   reset_data_allT(data)
+    reset_data_connected(data)
+    reset_data_disconnected(data)
+    reset_data_bubbles(data)
 end
 
-function reset_data_singleT(data::Data)
+function reset_data_connected(data::Data)
     data.P .= 0.0
-    data.BB .= 0.0
-    data.VV .= 0.0
     data.R .= 0.0
     data.C .= 0.0
     data.D .= 0.0
     data.Tini .= 0.0
-    data.Tdisini .= 0.0
     data.Tfin .= 0.0
+    return nothing
+end
+
+function reset_data_disconnected(data::Data)
+    data.BB .= 0.0
+    data.VV .= 0.0
+    data.Tdisini .= 0.0
     data.Tdisfin .= 0.0
     return nothing
 end
 
-function reset_data_allT(data::Data)
+function reset_data_bubbles(data::Data)
     data.Bini .= 0.0
     data.Bfin .= 0.0
     data.Vini .= 0.0
@@ -214,15 +225,20 @@ function multiplyPhaseRight(correlator, mom)
     return correlator
 end
 
-function getcorrelator(corr, tini, tfin) #Confirmar con David: el orden de los tiempos es corr[tfin, tini]
+function oneEndTrick(correlator)
+    aux = zeros(complex(Float64),size(correlator))
+    res = zeros(complex(Float64),size(correlator))
     L = NL0
-    T = NT0
-    correlator = zeros(complex(Float64), NL0*2, NL0*2)
-    correlator[1:L, 1:L] = corr[1 + L * (tini-1) : L * (tini), 1 + L * (tfin-1) : L * (tfin)]
-    correlator[L+1:2*L, 1:L] = corr[1 + L * (tini-1) + L*T : L * (tini) + L*T, 1 + L * (tfin-1) : L * (tfin)]
-    correlator[1:L, L+1:2*L] = corr[1 + L * (tini-1) : L * (tini), 1 + L * (tfin-1) + L*T : L * (tfin) + L*T]
-    correlator[L+1:2*L, L+1:2*L] = corr[1 + L * (tini-1) + L*T : L * (tini) + L*T, 1 + L * (tfin-1) + L*T : L * (tfin) + L*T]
-    return correlator
+    aux[1:L, 1:L] = correlator[1:L, 1:L]
+    aux[1:L, L+1:2*L] = - correlator[1:L, L+1:2*L]
+    aux[L+1:2*L, 1:L] = correlator[L+1:2*L, 1:L]
+    aux[L+1:2*L, L+1:2*L] = - correlator[L+1:2*L, L+1:2*L]
+    aux = aux'
+    res[1:L, 1:L] = aux[1:L, 1:L]
+    res[1:L, L+1:2*L] = aux[1:L, L+1:2*L]
+    res[L+1:2*L, 1:L] = - aux[L+1:2*L, 1:L]
+    res[L+1:2*L, L+1:2*L] = - aux[L+1:2*L, L+1:2*L]
+    return res #Conjugate transpose to do the one-end trick
 end
 
 function gammag5g0(correlator)
@@ -255,13 +271,48 @@ function gammaIg0(correlator)
     return res
 end
 
+function solveCtt(gD)
+    res = zeros(complex(Float64),NT0,2*NL0,2*NL0)
+    source = zeros(complex(Float64),NL0*NT0*2)
+    for t in 0:NT0-1
+        for x in 1:NL0
+            for s in 0:1
+                source[x + t * NL0 + s * NL0 * NT0] =  1.
+                solve = gD \ source
+                res[t+1, 1:NL0, x+s*NL0] = solve[1 + NL0*t : NL0 * (t+1)]
+                res[t+1, NL0+1:2*NL0, x+s*NL0] = solve[1 + NL0 * t + NL0*NT0 : NL0 * (t+1) + NL0*NT0]
+                source[x + t * NL0 + s * NL0 * NT0] = 0.
+            end
+        end
+    end
+    return res
+end
+
+function getCorrelator(gD, tini)
+    res = zeros(complex(Float64),NT0,2*NL0,2*NL0)
+    source = zeros(complex(Float64),NL0*NT0*2)
+    for x in 1:NL0
+        for s in 0:1
+            source[x + (tini-1) * NL0 + s * NL0 * NT0] =  1.
+            solve = gD \ source
+            for t in 0:NT0-1
+                res[t+1, 1:NL0, x + s * NL0] = solve[1 + NL0 * t : NL0 * (t + 1)]
+                res[t+1, NL0+1:2*NL0, x + s * NL0] = solve[1 + NL0 * t + NL0*NT0 : NL0 * (t+1) + NL0*NT0]
+            end
+            source[x + (tini-1) * NL0 + s * NL0 * NT0] = 0.
+        end
+    end
+    return res
+end
+
 gsignini = [+1im, +1.0, +1.0, -1.0]
 gsignfin = [+1im, +1.0, +1.0, +1.0]
 
-function computeTwoPionCorrelationFunction(sfile, data::Data, gDinv)
+function computeTwoPionCorrelationFunction(sfile, data::Data, gD)
 
     groups = createdatasets(sfile)
-    reset_data(data)
+    reset_data_connected(data)
+    reset_data_bubbles(data)
 
     MC = [zeros(complex(Float64),2*NL0,2*NL0) for i=1:2*abspmax+1]
     MR = [zeros(complex(Float64),2*NL0,2*NL0) for i=1:4*Onum]
@@ -269,17 +320,21 @@ function computeTwoPionCorrelationFunction(sfile, data::Data, gDinv)
     Cgfinini = [zeros(complex(Float64),2*NL0,2*NL0) for i=1:3]
     Cgtt = [zeros(complex(Float64),2*NL0,2*NL0) for i=1:3]
 
+    correlatortt = solveCtt(gD)
+
     L = NL0
     T = NT0
 
     tini0 = rand(1:tstep)
 
-    for dt in 0:NT0-1
-        reset_data_singleT(data)
-        for tini in tini0:tstep:NT0
+    for tini in tini0:tstep:NT0
+        correlators = getCorrelator(gD, tini)
+
+        for dt in 0:NT0-1
             tfin = (tini + dt - 1) % T + 1
-            cinifin = getcorrelator(gDinv, tini, tfin)
-            cfinini = getcorrelator(gDinv, tfin, tini)
+
+            cfinini = correlators[tfin,:,:]
+            cinifin = oneEndTrick(copy(cfinini))
 
             Cginifin[1] = gammag5g0(cinifin)
             Cginifin[2] = gammaId(cinifin)
@@ -337,8 +392,8 @@ function computeTwoPionCorrelationFunction(sfile, data::Data, gDinv)
                 end
             end
 
-            ciniini = getcorrelator(gDinv, tini, tini)
-            cfinfin = getcorrelator(gDinv, tfin, tfin)
+            ciniini = correlatortt[tini,:,:]
+            cfinfin = correlatortt[tfin,:,:]
             auxiniini = copy(ciniini)
             auxfinfin = copy(cfinfin)
 
@@ -400,33 +455,33 @@ function computeTwoPionCorrelationFunction(sfile, data::Data, gDinv)
                 ptotold = ptot
 
                 for o in 1:2*Onum
-                    data.Tini[ptot + 1, 1, o] += gsignini[1] * sum(transpose(MR[2*o]) .* (cinifin)) / (T/tstep)
-                    data.Tini[ptot + 1, 2, o] += gsignini[2] * sum(transpose(MR[2*o]) .* (Cginifin[1])) / (T/tstep)
-                    data.Tini[ptot + 1, 3, o] += gsignini[3] * sum(transpose(MR[2*o]) .* (Cginifin[2])) / (T/tstep)
-                    data.Tini[ptot + 1, 4, o] += gsignini[4] * sum(transpose(MR[2*o]) .* (Cginifin[3])) / (T/tstep)
+                    data.Tini[ptot + 1, 1, o, dt+1] += gsignini[1] * sum(transpose(MR[2*o]) .* (cinifin)) / (T/tstep)
+                    data.Tini[ptot + 1, 2, o, dt+1] += gsignini[2] * sum(transpose(MR[2*o]) .* (Cginifin[1])) / (T/tstep)
+                    data.Tini[ptot + 1, 3, o, dt+1] += gsignini[3] * sum(transpose(MR[2*o]) .* (Cginifin[2])) / (T/tstep)
+                    data.Tini[ptot + 1, 4, o, dt+1] += gsignini[4] * sum(transpose(MR[2*o]) .* (Cginifin[3])) / (T/tstep)
 
-                    data.Tfin[ptot + 1, 1, o] += gsignfin[1] * sum(transpose(MR[2*o-1]) .* (cfinini)) / (T/tstep)
-                    data.Tfin[ptot + 1, 2, o] += gsignfin[2] *sum(transpose(MR[2*o-1]) .* (Cgfinini[1])) / (T/tstep)
-                    data.Tfin[ptot + 1, 3, o] += gsignfin[3] *sum(transpose(MR[2*o-1]) .* (Cgfinini[2])) / (T/tstep)
-                    data.Tfin[ptot + 1, 4, o] += gsignfin[4] *sum(transpose(MR[2*o-1]) .* (Cgfinini[3])) / (T/tstep)
+                    data.Tfin[ptot + 1, 1, o, dt+1] += gsignfin[1] * sum(transpose(MR[2*o-1]) .* (cfinini)) / (T/tstep)
+                    data.Tfin[ptot + 1, 2, o, dt+1] += gsignfin[2] *sum(transpose(MR[2*o-1]) .* (Cgfinini[1])) / (T/tstep)
+                    data.Tfin[ptot + 1, 3, o, dt+1] += gsignfin[3] *sum(transpose(MR[2*o-1]) .* (Cgfinini[2])) / (T/tstep)
+                    data.Tfin[ptot + 1, 4, o, dt+1] += gsignfin[4] *sum(transpose(MR[2*o-1]) .* (Cgfinini[3])) / (T/tstep)
                 end
 
-                data.P[ptot+1, 1, 1] += gsignini[1] * gsignfin[1] * sum(transpose(cfinini) .* (cinifin)) / (T/tstep)
-                data.P[ptot+1, 1, 2] += gsignini[1] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (cinifin)) / (T/tstep)
-                data.P[ptot+1, 1, 3] += gsignini[1] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (cinifin)) / (T/tstep)
-                data.P[ptot+1, 1, 4] += gsignini[1] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (cinifin)) / (T/tstep)
-                data.P[ptot+1, 2, 1] += gsignini[2] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[1])) / (T/tstep)
-                data.P[ptot+1, 2, 2] += gsignini[2] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[1])) / (T/tstep)
-                data.P[ptot+1, 2, 3] += gsignini[2] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[1])) / (T/tstep)
-                data.P[ptot+1, 2, 4] += gsignini[2] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[1])) / (T/tstep)
-                data.P[ptot+1, 3, 1] += gsignini[3] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[2])) / (T/tstep)
-                data.P[ptot+1, 3, 2] += gsignini[3] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[2])) / (T/tstep)
-                data.P[ptot+1, 3, 3] += gsignini[3] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[2])) / (T/tstep)
-                data.P[ptot+1, 3, 4] += gsignini[3] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[2])) / (T/tstep)
-                data.P[ptot+1, 4, 1] += gsignini[4] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[3])) / (T/tstep)
-                data.P[ptot+1, 4, 2] += gsignini[4] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[3])) / (T/tstep)
-                data.P[ptot+1, 4, 3] += gsignini[4] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[3])) / (T/tstep)
-                data.P[ptot+1, 4, 4] += gsignini[4] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 1, 1, dt+1] += gsignini[1] * gsignfin[1] * sum(transpose(cfinini) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 2, dt+1] += gsignini[1] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 3, dt+1] += gsignini[1] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 4, dt+1] += gsignini[1] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 2, 1, dt+1] += gsignini[2] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 2, dt+1] += gsignini[2] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 3, dt+1] += gsignini[2] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 4, dt+1] += gsignini[2] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 3, 1, dt+1] += gsignini[3] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 2, dt+1] += gsignini[3] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 3, dt+1] += gsignini[3] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 4, dt+1] += gsignini[3] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 4, 1, dt+1] += gsignini[4] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 2, dt+1] += gsignini[4] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 3, dt+1] += gsignini[4] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 4, dt+1] += gsignini[4] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[3])) / (T/tstep)
 
                 cfinini = multiplyPhaseLeft(cfinini, -ptot)
                 cinifin = multiplyPhaseLeft(cinifin, ptot)
@@ -446,32 +501,29 @@ function computeTwoPionCorrelationFunction(sfile, data::Data, gDinv)
                 ptotold = ptot
                 ptotold3 = ptot
 
-                data.P[ptot+1, 1, 1] += gsignini[1] * gsignfin[1] * sum(transpose(cfinini) .* (cinifin)) / (T/tstep)
-                data.P[ptot+1, 1, 2] += gsignini[1] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (cinifin)) / (T/tstep)
-                data.P[ptot+1, 1, 3] += gsignini[1] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (cinifin)) / (T/tstep)
-                data.P[ptot+1, 1, 4] += gsignini[1] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (cinifin)) / (T/tstep)
-                data.P[ptot+1, 2, 1] += gsignini[2] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[1])) / (T/tstep)
-                data.P[ptot+1, 2, 2] += gsignini[2] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[1])) / (T/tstep)
-                data.P[ptot+1, 2, 3] += gsignini[2] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[1])) / (T/tstep)
-                data.P[ptot+1, 2, 4] += gsignini[2] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[1])) / (T/tstep)
-                data.P[ptot+1, 3, 1] += gsignini[3] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[2])) / (T/tstep)
-                data.P[ptot+1, 3, 2] += gsignini[3] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[2])) / (T/tstep)
-                data.P[ptot+1, 3, 3] += gsignini[3] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[2])) / (T/tstep)
-                data.P[ptot+1, 3, 4] += gsignini[3] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[2])) / (T/tstep)
-                data.P[ptot+1, 4, 1] += gsignini[4] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[3])) / (T/tstep)
-                data.P[ptot+1, 4, 2] += gsignini[4] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[3])) / (T/tstep)
-                data.P[ptot+1, 4, 3] += gsignini[4] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[3])) / (T/tstep)
-                data.P[ptot+1, 4, 4] += gsignini[4] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 1, 1, dt+1] += gsignini[1] * gsignfin[1] * sum(transpose(cfinini) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 2, dt+1] += gsignini[1] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 3, dt+1] += gsignini[1] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 1, 4, dt+1] += gsignini[1] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (cinifin)) / (T/tstep)
+                data.P[ptot+1, 2, 1, dt+1] += gsignini[2] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 2, dt+1] += gsignini[2] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 3, dt+1] += gsignini[2] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 2, 4, dt+1] += gsignini[2] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[1])) / (T/tstep)
+                data.P[ptot+1, 3, 1, dt+1] += gsignini[3] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 2, dt+1] += gsignini[3] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 3, dt+1] += gsignini[3] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 3, 4, dt+1] += gsignini[3] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[2])) / (T/tstep)
+                data.P[ptot+1, 4, 1, dt+1] += gsignini[4] * gsignfin[1] * sum(transpose(cfinini) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 2, dt+1] += gsignini[4] * gsignfin[2] * sum(transpose(Cgfinini[1]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 3, dt+1] += gsignini[4] * gsignfin[3] * sum(transpose(Cgfinini[2]) .* (Cginifin[3])) / (T/tstep)
+                data.P[ptot+1, 4, 4, dt+1] += gsignini[4] * gsignfin[4] * sum(transpose(Cgfinini[3]) .* (Cginifin[3])) / (T/tstep)
             end
             cfinini = multiplyPhaseLeft(cfinini, -ptotold)
             cinifin = multiplyPhaseLeft(cinifin, ptotold)
 
         end
-        save_singletconnected(data, sfile, dt)
-    end
 
-    for t in 1:NT0
-        ctt = getcorrelator(gDinv, t, t)
+        ctt = correlatortt[tini,:,:]
         aux = copy(ctt)
 
         Cgtt[1] = gammag5g0(ctt)
@@ -487,12 +539,12 @@ function computeTwoPionCorrelationFunction(sfile, data::Data, gDinv)
                 q2 = mom_comb[ptot+1,(o-1)%Onum + 1,o <= Onum ? 2 : 1]
                 ctt = multiplyPhaseRight(ctt, q2 - p2old)
                 ctt = multiplyPhaseLeft(ctt, q1 - p1old)
-                data.Vfin[ptot+1,o,t] = sum(transpose(ctt) .* (aux))
-                data.Bfin[ptot+1,1,t] = gsignfin[1] * LinearAlgebra.tr(ctt)
+                data.Vfin[ptot+1,o,tini] = sum(transpose(ctt) .* (aux))
+                data.Bfin[ptot+1,1,tini] = gsignfin[1] * LinearAlgebra.tr(ctt)
                 ctt = multiplyPhaseRight(ctt, -2*q2)
                 ctt = multiplyPhaseLeft(ctt, -2*q1)
-                data.Vini[ptot+1,o,t] = sum(transpose(ctt) .* (aux))
-                data.Bini[ptot+1,1,t] = gsignini[1] * LinearAlgebra.tr(ctt)
+                data.Vini[ptot+1,o,tini] = sum(transpose(ctt) .* (aux))
+                data.Bini[ptot+1,1,tini] = gsignini[1] * LinearAlgebra.tr(ctt)
                 p1old = -q1
                 p2old = -q2
             end
@@ -506,26 +558,27 @@ function computeTwoPionCorrelationFunction(sfile, data::Data, gDinv)
 
             if ptot > Pmax
                 ctt = multiplyPhaseLeft(ctt, ptot - ptotold2)
-                data.Bfin[ptot+1,1,t] += gsignfin[1] * LinearAlgebra.tr(ctt)
+                data.Bfin[ptot+1,1,tini] += gsignfin[1] * LinearAlgebra.tr(ctt)
                 ctt = multiplyPhaseLeft(ctt, -2*ptot)
-                data.Bini[ptot+1,1,t] += gsignini[1] * LinearAlgebra.tr(ctt)
+                data.Bini[ptot+1,1,tini] += gsignini[1] * LinearAlgebra.tr(ctt)
                 ptotold2 = -ptot
             end
             for g in 1:3
                 Cgtt[g] = multiplyPhaseLeft(Cgtt[g], ptot - ptotold2)
-                data.Bfin[ptot+1,g+1,t] += gsignfin[g+1] * LinearAlgebra.tr(Cgtt[g])
+                data.Bfin[ptot+1,g+1,tini] += gsignfin[g+1] * LinearAlgebra.tr(Cgtt[g])
                 Cgtt[g] = multiplyPhaseLeft(Cgtt[g], -2*ptot)
-                data.Bini[ptot+1,g+1,t] += gsignini[g+1] * LinearAlgebra.tr(Cgtt[g])
+                data.Bini[ptot+1,g+1,tini] += gsignini[g+1] * LinearAlgebra.tr(Cgtt[g])
             end
             ptotold3 = ptot
         end
         ctt = multiplyPhaseLeft(ctt, - ptotold2)
     end
 
+    save_connected(data, sfile)
     save_allt(data, sfile)
 
     for dt in 0:NT0-1
-        reset_data_singleT(data)
+        reset_data_disconnected(data)
         for tini in tini0:tstep:NT0
             tfin = (tini + dt - 1) % T + 1
             for ptot in 0:Pmax
@@ -749,20 +802,18 @@ end
 
 
 fb, model = read_cnfg_info(cfile, U1Nf2)
-# pws =  U1exCorrelator(model, wdir=dirname(cfile))
-for i in start:finish
+pws =  U1exCorrelator(model, wdir=dirname(cfile))
+for i in start:cfgsstep:finish
     @time begin
         if i == start && start != 1
             LFTSampling.read_cnfg_n(fb, start, model)
         else
             read_next_cnfg(fb, model)
         end
-#         model.U .= 1
-#         random_gauge_trafo(model)
         sfile = h5open(joinpath(spath, "measurements$(i).h5"), "w")
         save_topcharge(model, sfile)
-        gDinv = construct_invgD_inplace!(model,1)
-        computeTwoPionCorrelationFunction(sfile, data, gDinv)
+        construct_gD!(pws, model, model.params.am0[1])
+        computeTwoPionCorrelationFunction(sfile, data, LinearAlgebra.lu(pws.gD))
         close(sfile)
     end
 end
