@@ -7,6 +7,7 @@ import Dates
 import Random
 import BDIO
 import LinearAlgebra
+import SparseArrays
 import LinearAlgebra: dot
 import Elliptic, Elliptic.Jacobi
 using PrecompileTools: @setup_workload, @compile_workload

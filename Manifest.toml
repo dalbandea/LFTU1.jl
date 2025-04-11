@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.2"
+julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "4f4ba13bd02fbb3aacc3fe7fd75b2d67efd937b5"
+project_hash = "edbfcef1f6151d6b9cfbf5ff79d69b287ce17115"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -252,7 +252,7 @@ version = "0.9.17"
 
 [[deps.LFTSampling]]
 deps = ["BDIO", "DelimitedFiles", "Distributions", "Git", "LinearAlgebra", "Random"]
-git-tree-sha1 = "2e86eb1bf6c07e657087e812aa65bcf2fd74716a"
+git-tree-sha1 = "0b4628985828f5f0c4f3f04af28cde5d936e1649"
 repo-rev = "main"
 repo-url = "https://github.com/dalbandea/LFTSampling.jl"
 uuid = "01beebb5-6b54-40b6-b312-fac6d2d10d07"
@@ -412,7 +412,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+4"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
