@@ -522,6 +522,11 @@ function computeTwoPionCorrelationFunction(sfile, data::Data, gD)
             cinifin = multiplyPhaseLeft(cinifin, ptotold)
 
         end
+    end
+
+    save_connected(data, sfile)
+
+    for tini in 1:NT0
 
         ctt = correlatortt[tini,:,:]
         aux = copy(ctt)
@@ -574,30 +579,29 @@ function computeTwoPionCorrelationFunction(sfile, data::Data, gD)
         ctt = multiplyPhaseLeft(ctt, - ptotold2)
     end
 
-    save_connected(data, sfile)
     save_allt(data, sfile)
 
     for dt in 0:NT0-1
         reset_data_disconnected(data)
-        for tini in tini0:tstep:NT0
+        for tini in 1:NT0
             tfin = (tini + dt - 1) % T + 1
             for ptot in 0:Pmax
                 id = 1
                 for ini in 1:Onum
                     for fin in 1:Onum
-                        data.VV[ptot+1,id] += data.Vini[ptot+1,ini,tini] * data.Vfin[ptot+1,fin,tfin] / (T/tstep)
+                        data.VV[ptot+1,id] += data.Vini[ptot+1,ini,tini] * data.Vfin[ptot+1,fin,tfin] / (T)
                         id += 1
                     end
                     for g in 1:4
-                        data.Tdisini[ptot+1,g,ini] += data.Bini[ptot+1,g,tini] * data.Vfin[ptot+1,ini,tfin] / (T/tstep)
-                        data.Tdisfin[ptot+1,g,ini] += data.Bfin[ptot+1,g,tfin] * data.Vini[ptot+1,ini,tini] / (T/tstep)
+                        data.Tdisini[ptot+1,g,ini] += data.Bini[ptot+1,g,tini] * data.Vfin[ptot+1,ini,tfin] / (T)
+                        data.Tdisfin[ptot+1,g,ini] += data.Bfin[ptot+1,g,tfin] * data.Vini[ptot+1,ini,tini] / (T)
                     end
                 end
             end
             for ptot in 0:abspmax
                 for g1 in 1:4
                     for g2 in 1:4
-                        data.BB[ptot+1,g1,g2] += data.Bini[ptot+1,g1,tini] * data.Bfin[ptot+1,g2,tfin] / (T/tstep)
+                        data.BB[ptot+1,g1,g2] += data.Bini[ptot+1,g1,tini] * data.Bfin[ptot+1,g2,tfin] / (T)
                     end
                 end
             end
