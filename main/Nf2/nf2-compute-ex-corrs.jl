@@ -149,7 +149,7 @@ data = (
     Vini = zeros(complex(Float64), Pmax + 1, Onum, NT0),
     Vfin = zeros(complex(Float64), Pmax + 1, Onum, NT0),
     VV = zeros(complex(Float64), Pmax + 1, Onum^2*2),
-    R = zeros(complex(Float64), Pmax + 1, Onum^2*2, NT0),
+    R = zeros(complex(Float64), Pmax + 1, Onum^2*4, NT0),
     C = zeros(complex(Float64), Pmax + 1, Onum^2*2, NT0),
     D = zeros(complex(Float64), Pmax + 1, Onum^2*2, NT0),
     Tini = zeros(complex(Float64), Pmax + 1, 4, Onum*2, NT0),
@@ -432,7 +432,12 @@ function computeTwoPionCorrelationFunction(sfile, data::Data, gD)
                 cfinfin = multiplyPhaseLeft(cfinfin, - p1old)
 
 
-                for ini in 1:Onum
+                for ini in 1:2*Onum
+                    k1 = mom_comb[ptot+1,(ini-1)%Onum + 1,ini <= Onum ? 1 : 2]
+                    k2 = mom_comb[ptot+1,(ini-1)%Onum + 1,ini <= Onum ? 2 : 1]
+                    if ini > Onum && k1 == k2
+                        continue
+                    end
                     for fin in 1:2*Onum
                         p1 = mom_comb[ptot+1,(fin-1)%Onum + 1,fin <= Onum ? 1 : 2]
                         p2 = mom_comb[ptot+1,(fin-1)%Onum + 1,fin <= Onum ? 2 : 1]
@@ -659,8 +664,8 @@ function createdatasets(sfile)
                     continue
                 end
 
+                create_dataset(gRmom, "ini_$(k1)_$(k2)_fin_$(p1)_$(p2)", complex(Float64), NT0)
                 if ini <= Onum
-                    create_dataset(gRmom, "ini_$(k1)_$(k2)_fin_$(p1)_$(p2)", complex(Float64), NT0)
                     create_dataset(gDmom, "ini_$(k1)_$(k2)_fin_$(p1)_$(p2)", complex(Float64), NT0)
                     create_dataset(gCmom, "ini_$(k1)_$(k2)_fin_$(p1)_$(p2)", complex(Float64), NT0)
                     if fin <= Onum
@@ -707,12 +712,12 @@ function save_connected(data, sfile)
                     continue
                 end
 
+                sfile["R/P$(p)/ini_$(k1)_$(k2)_fin_$(p1)_$(p2)"][:] = data.R[p+1,id,:]
                 if ini <= Onum
-                    sfile["R/P$(p)/ini_$(k1)_$(k2)_fin_$(p1)_$(p2)"][:] = data.R[p+1,id,:]
                     sfile["D/P$(p)/ini_$(k1)_$(k2)_fin_$(p1)_$(p2)"][:] = data.D[p+1,id,:]
                     sfile["C/P$(p)/ini_$(k1)_$(k2)_fin_$(p1)_$(p2)"][:] = data.C[p+1,id,:]
-                    id += 1
                 end
+                id += 1
             end
 
             for g in 1:4
