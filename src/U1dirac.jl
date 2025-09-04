@@ -39,6 +39,7 @@ function gamm5Dw!(so, si, U1ws::U1Nf2)
 end
 
 
+
 function gamm5Dw_sqr_msq!(so, tmp, si, U1ws::U1Nf2)
 
     gamm5Dw!(so, si, U1ws)
@@ -72,6 +73,50 @@ function gamm5Dw_sqr_msq_am0!(am0)
 end
 
 
+# Returns so = γ₅ si in-place.
+KernelAbstractions.@kernel function U1gamm5!(so, si, Nx, Ny)
+
+    i1, i2 = @index(Global, NTuple)
+
+    iu1 = mod(i1, Nx) + 1
+    iu2 = mod(i2, Ny) + 1
+
+    id1 = mod1(i1-1, Nx)
+    id2 = mod1(i2-1, Ny)
+
+    so[i1,i2,1] =  si[i1,i2,1]
+    so[i1,i2,2] =  -si[i1,i2,2]
+    
+end
+
+function gamm5!(so, si, U1ws::Union{U1Nf,U1Quenched,U1Nf2})
+    lp = U1ws.params
+    event = U1gamm5!(U1ws.device)(so, si, lp.iL[1],
+                                  lp.iL[2], ndrange=(lp.iL[1], lp.iL[2]),
+                                  workgroupsize=U1ws.kprm.threads)
+    synchronize(U1ws.device)
+    return nothing
+end
+
+"""
+   Dw!(so, si, am0, U1ws)
+
+Apply γ₅(γ₅D) to a fermion field. `si` is the input fermion field, and `so` the
+output.
+
+# Examples
+```jldoctest
+julia> Dw!(si, so, am0, U1ws)
+```
+"""
+function Dw!(so, si, am0, U1ws::Union{U1Nf,U1Quenched,U1Nf2})
+    gamm5Dw!(so, si, am0, U1ws)
+    tmp = copy(so)
+    gamm5!(so, tmp, U1ws)
+    
+    return nothing
+end
+export Dw!
 
 # function gamm5Dw_sqr(so, U, si, am0::Float64, prm::LattParm, kprm::KernelParm)
 #     tmp = similar(so)

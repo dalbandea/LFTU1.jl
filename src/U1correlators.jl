@@ -228,6 +228,29 @@ end
 export construct_gD!
 
 """
+It constructs D exactly for a mass `mass`
+"""
+function construct_D!(corrws, u1ws::Union{U1Quenched,U1Nf2,U1Nf}, mass::Float64)
+    x1 = corrws.e1
+    x2 = corrws.e2
+    gD = corrws.gD
+    x1 .= 0.0
+    x2 .= 0.0
+    lsize = u1ws.params.iL[1]
+    for is in 1:2, il2 in 1:lsize, il1 in 1:lsize
+        ilinidx = linear_index(il1, il2, is, lsize, 2)
+        x1[ilinidx] = 1.0
+        Dw!(x2, x1, mass, u1ws)
+        for js in 1:2, jl2 in 1:lsize, jl1 in 1:lsize
+            jlinidx = linear_index(jl1, jl2, js, lsize, 2)
+            gD[jlinidx,ilinidx] = x2[jlinidx]
+        end
+        x1[ilinidx] = 0.0
+    end
+end
+export construct_D!
+
+"""
 Builds inverse of γ₅D using LinearAlgebra.inv for flavor `ifl`
 """
 function get_invgD!(corrws, u1ws, ifl)
