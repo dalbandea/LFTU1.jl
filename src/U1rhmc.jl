@@ -147,25 +147,27 @@ function power_method(U1ws::U1, am0; iter::Int64 = 1000)
     # Then λ_max will be ⟨b|A|b⟩/⟨b|b⟩ - shift.
     for i in 1:iter
         b_aux = copy(b)
-        gamm5Dw_sqr_msq!(b_aux, tmp, b, am0, U1ws::U1Nf)
+        gamm5Dw_sqr_msq!(b_aux, tmp, b, am0, U1ws)
         b_aux .= b_aux .+ shift*b
-        b = b_aux/LinearAlgebra.dot(b_aux,b_aux)
+        b = b_aux/sqrt(LinearAlgebra.dot(b_aux,b_aux))
     end
     bnext = copy(b)
-    gamm5Dw_sqr_msq!(bnext, tmp, b, am0, U1ws::U1Nf)
+    gamm5Dw_sqr_msq!(bnext, tmp, b, am0, U1ws)
     bnext .= bnext .+ shift*b
     lambda_max = LinearAlgebra.dot(b,bnext)/LinearAlgebra.dot(b,b) - shift
+
+    println("TOL = ", LinearAlgebra.norm(bnext .- lambda_max*b - shift*b)/LinearAlgebra.norm(lambda_max*b))
 
     # Apply recursively b = (A-λ_max I) b = Ab - λ_max b
     # Then λ_min will be ⟨b|A|b⟩/⟨b|b⟩ + λ_max
     for i in 1:iter
         b_last = copy(b)
-        gamm5Dw_sqr_msq!(b, tmp, b_last, am0, U1ws::U1Nf)
+        gamm5Dw_sqr_msq!(b, tmp, b_last, am0, U1ws)
         b .= b .- lambda_max*b_last
-        b = b/LinearAlgebra.dot(b,b)
+        b = b/sqrt(LinearAlgebra.dot(b,b))
     end
     bnext = copy(b)
-    gamm5Dw_sqr_msq!(bnext, tmp, b, am0, U1ws::U1Nf)
+    gamm5Dw_sqr_msq!(bnext, tmp, b, am0, U1ws)
     bnext .= bnext .- lambda_max*b
     lambda_min = LinearAlgebra.dot(b,bnext)/LinearAlgebra.dot(b,b) + lambda_max
 
