@@ -92,7 +92,12 @@ function read_cnfg_info(fname::String, ::Type{U1Quenched})
 end
 
 
-function read_cnfg_info(fname::String, ::Type{U1Nf2})
+"""
+Versions:
+- 0.1: Square lattice only, lsize2 = lsize1
+- 0.2: Rectangular lattice
+"""
+function read_cnfg_info(fname::String, ::Type{U1Nf2}; v = "0.2")
 
     fb = BDIO.BDIO_open(fname, "r")
 
@@ -109,7 +114,14 @@ function read_cnfg_info(fname::String, ::Type{U1Nf2})
     BDIO.BDIO_read(fb, ifoo)
     lsize1   = convert(Int64, ifoo[1])
     lsize2   = convert(Int64, ifoo[2])
-    BC      = convert(Int64, ifoo[3])
+    if v == "0.1"
+        BC = lsize2
+        lsize2 = lsize1
+    elseif v == "0.2"
+        BC      = convert(Int64, ifoo[3])
+    else
+        error("Current I/O versions are 0.1 and 0.2")
+    end
 
     if BC == 0
         BCt = PeriodicBC
