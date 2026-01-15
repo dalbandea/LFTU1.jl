@@ -110,13 +110,28 @@ julia> Dw!(si, so, am0, U1ws)
 ```
 """
 function Dw!(so, si, am0, U1ws::Union{U1Nf,U1Quenched,U1Nf2})
-    gamm5Dw!(so, si, am0, U1ws)
     tmp = copy(so)
+    Dw!(so, tmp, si, am0, U1ws)
+    return nothing
+end
+function Dw!(so, tmp, si, am0, U1ws::Union{U1Nf,U1Quenched,U1Nf2})
+    gamm5Dw!(tmp, si, am0, U1ws)
     gamm5!(so, tmp, U1ws)
-    
     return nothing
 end
 export Dw!
+
+function Dwdag!(so, si, am0, U1ws::Union{U1Nf,U1Quenched,U1Nf2})
+    tmp = copy(so)
+    Dwdag!(so, tmp, si, am0, U1ws)
+    return nothing
+end
+function Dwdag!(so, tmp, si, am0, U1ws::Union{U1Nf,U1Quenched,U1Nf2})
+    gamm5!(tmp, si, U1ws)
+    gamm5Dw!(so, tmp, am0, U1ws)
+    return nothing
+end
+export Dwdag!
 
 # function gamm5Dw_sqr(so, U, si, am0::Float64, prm::LattParm, kprm::KernelParm)
 #     tmp = similar(so)
