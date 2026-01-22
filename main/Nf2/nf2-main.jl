@@ -1,7 +1,7 @@
 # Quantum Rotor
 import Pkg
 Pkg.activate(".")
-Pkg.add("Revise")
+# Pkg.add("Revise")
 Pkg.add("KernelAbstractions")
 using Revise
 using TOML
