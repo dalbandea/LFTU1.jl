@@ -1,7 +1,7 @@
 # Quantum Rotor
 import Pkg
 Pkg.activate(".")
-Pkg.add("Revise")
+# Pkg.add("Revise")
 Pkg.add("KernelAbstractions")
 using Revise
 using TOML
@@ -112,7 +112,7 @@ else
     @info "Starting thermalization"
     for i in 1:ntherm
         @info "THERM STEP $i"
-        @time sample!(model, samplerws)
+        @time sample!(model, samplerws, N_windings = N_windings, Lw = Lw)
         flush(logio)
     end
 end
@@ -126,9 +126,9 @@ end
 @time for i in (ncfgs+1):(ncfgs+ntraj)
     @info "TRAJECTORY $i"
     for j in 1:discard
-        @time sample!(model, samplerws)
+        @time sample!(model, samplerws, N_windings = N_windings, Lw = Lw)
     end
-    @time sample!(model, samplerws)
+    @time sample!(model, samplerws, N_windings = N_windings, Lw = Lw)
     save_cnfg(configfile, model)
     flush(logio)
 end

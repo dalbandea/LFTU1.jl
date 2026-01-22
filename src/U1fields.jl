@@ -208,7 +208,7 @@ function U1Nfworkspace(::Type{T1}, ::Type{T2}, lp::U1NfParm, device, kprm, rprm,
     else
         U = custom_init
     end
-    sws = BiCGSTAB(maxiter, tol, U)
+    sws = CG(maxiter, tol, U)
     print("A")
     return U1Nfworkspace{T1, typeof(U), typeof(sws)}(T1, U, lp, KernelAbstractions.get_backend(U), kprm, rprm, sws)
 end
