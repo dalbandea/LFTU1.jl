@@ -165,8 +165,8 @@ struct U1exCorrelator <: LFTU1.AbstractU1Correlator
     invgD
     e1
     e2
-    result::Vector{Float64} # correlator
-    history::Vector{Vector{Float64}}
+    result#::Vector{Float64} # correlator
+    history#::Vector{Vector{Float64}}
     function U1exCorrelator(u1ws::LFTU1.U1; wdir::String = "./trash/", 
                                name::String = "U(1) correlator", 
                                ID::String = "excorr_pion", 
@@ -177,12 +177,12 @@ struct U1exCorrelator <: LFTU1.AbstractU1Correlator
         lp = u1ws.params
         filepath = joinpath(wdir, mesdir, ID*wdir_sufix*extension)
         V = prod((u1ws.params.iL..., 2))
-        gD = LFTU1.to_device(u1ws.device, zeros(complex(Float64), V, V))
+        gD = LFTU1.to_device(u1ws.device, zeros(complex(typeof(u1ws.U[1])), V, V))
         invgD1 = copy(gD)
         invgD2 = copy(gD)
-        e1 = LFTU1.to_device(u1ws.device, zeros(complex(Float64), lp.iL..., 2))
+        e1 = LFTU1.to_device(u1ws.device, zeros(complex(typeof(u1ws.U[1])), lp.iL..., 2))
         e2 = copy(e1)
-        C = zeros(Float64, lp.iL[1])
+        C = zeros(typeof(u1ws.U[1]), lp.iL[1])
         history = []
         mkpath(dirname(filepath))
         return new(name, ID, filepath, gD, [invgD1, invgD2], e1, e2, C, history)
@@ -214,7 +214,7 @@ export inverse_linear_index
 """
 It constructs γ₅D exactly for a mass `mass`
 """
-function construct_gD!(corrws, u1ws::Union{U1Quenched,U1Nf2,U1Nf}, mass::Float64)
+function construct_gD!(corrws, u1ws::Union{U1Quenched,U1Nf2,U1Nf}, mass)
     x1 = corrws.e1
     x2 = corrws.e2
     gD = corrws.gD
@@ -237,7 +237,7 @@ export construct_gD!
 """
 It constructs D exactly for a mass `mass`
 """
-function construct_D!(corrws, u1ws::Union{U1Quenched,U1Nf2,U1Nf}, mass::Float64)
+function construct_D!(corrws, u1ws::Union{U1Quenched,U1Nf2,U1Nf}, mass)
     x1 = corrws.e1
     x2 = corrws.e2
     gD = corrws.gD
