@@ -1,20 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.4"
+julia_version = "1.11.1"
 manifest_format = "2.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 project_hash = "420e88342710f16859a105d0508eb1830ba51422"
-=======
-project_hash = "b9f4d91b87c8ed17cfc4b11537d8c1fe0ec61518"
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-project_hash = "4f4ba13bd02fbb3aacc3fe7fd75b2d67efd937b5"
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
-=======
-project_hash = "edbfcef1f6151d6b9cfbf5ff79d69b287ce17115"
->>>>>>> 8ba68f0 (New implementation working. No memory consumption, slightly slower.)
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -135,9 +123,9 @@ version = "1.11.0"
 
 [[deps.Distributions]]
 deps = ["AliasTables", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SpecialFunctions", "Statistics", "StatsAPI", "StatsBase", "StatsFuns"]
-git-tree-sha1 = "4b138e4643b577ccf355377c2bc70fa975af25de"
+git-tree-sha1 = "3101c32aab536e7a27b1763c0797dba151b899ad"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.115"
+version = "0.25.113"
 
     [deps.Distributions.extensions]
     DistributionsChainRulesCoreExt = "ChainRulesCore"
@@ -156,24 +144,10 @@ uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 version = "0.9.3"
 
 [[deps.Documenter]]
-<<<<<<< HEAD
-<<<<<<< HEAD
 deps = ["ANSIColoredPrinters", "AbstractTrees", "Base64", "CodecZlib", "Dates", "DocStringExtensions", "Downloads", "Git", "IOCapture", "InteractiveUtils", "JSON", "LibGit2", "Logging", "Markdown", "MarkdownAST", "Pkg", "PrecompileTools", "REPL", "RegistryInstances", "SHA", "TOML", "Test", "Unicode"]
 git-tree-sha1 = "5a1ee886566f2fa9318df1273d8b778b9d42712d"
 uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 version = "1.7.0"
-=======
-deps = ["ANSIColoredPrinters", "AbstractTrees", "Base64", "Dates", "DocStringExtensions", "Downloads", "Git", "IOCapture", "InteractiveUtils", "JSON", "LibGit2", "Logging", "Markdown", "MarkdownAST", "Pkg", "PrecompileTools", "REPL", "RegistryInstances", "SHA", "Test", "Unicode"]
-git-tree-sha1 = "2613dbec8f4748273bbe30ba71fd5cb369966bac"
-uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-version = "1.2.1"
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-deps = ["ANSIColoredPrinters", "AbstractTrees", "Base64", "CodecZlib", "Dates", "DocStringExtensions", "Downloads", "Git", "IOCapture", "InteractiveUtils", "JSON", "LibGit2", "Logging", "Markdown", "MarkdownAST", "Pkg", "PrecompileTools", "REPL", "RegistryInstances", "SHA", "TOML", "Test", "Unicode"]
-git-tree-sha1 = "d0ea2c044963ed6f37703cead7e29f70cba13d7e"
-uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-version = "1.8.0"
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 
 [[deps.Downloads]]
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
@@ -187,21 +161,9 @@ version = "1.0.1"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-<<<<<<< HEAD
-<<<<<<< HEAD
 git-tree-sha1 = "1c6317308b9dc757616f0b5cb379db10494443a7"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.6.2+0"
-=======
-git-tree-sha1 = "4558ab818dcceaab612d1bb8c19cee87eda2b83c"
-uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
-version = "2.5.0+0"
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-git-tree-sha1 = "f42a5b1e20e009a43c3646635ed81a9fcaccb287"
-uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
-version = "2.6.4+2"
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -232,29 +194,15 @@ version = "1.3.1"
 
 [[deps.Git_jll]]
 deps = ["Artifacts", "Expat_jll", "JLLWrappers", "LibCURL_jll", "Libdl", "Libiconv_jll", "OpenSSL_jll", "PCRE2_jll", "Zlib_jll"]
-git-tree-sha1 = "399f4a308c804b446ae4c91eeafadb2fe2c54ff9"
+git-tree-sha1 = "ea372033d09e4552a04fd38361cd019f9003f4f4"
 uuid = "f8c6e375-362e-5223-8a59-34ff63f689eb"
-version = "2.47.1+0"
+version = "2.46.2+0"
 
 [[deps.HypergeometricFunctions]]
-<<<<<<< HEAD
-<<<<<<< HEAD
 deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
 git-tree-sha1 = "7c4195be1649ae622304031ed46a2f4df989f1eb"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.24"
-=======
-deps = ["DualNumbers", "LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
-git-tree-sha1 = "f218fe3736ddf977e0e772bc9a586b2383da2685"
-uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
-version = "0.3.23"
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
-git-tree-sha1 = "b1c2585431c382e3fe5805874bda6aea90a95de9"
-uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
-version = "0.3.25"
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 
 [[deps.IOCapture]]
 deps = ["Logging", "Random"]
@@ -274,9 +222,9 @@ version = "0.2.2"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
-git-tree-sha1 = "a007feb38b422fbdab534406aeca1b86823cb4d6"
+git-tree-sha1 = "be3dc50a92e5a386872a493a10050136d4703f9b"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-version = "1.7.0"
+version = "1.6.1"
 
 [[deps.JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
@@ -284,24 +232,12 @@ git-tree-sha1 = "31e996f0a15c7b280ba9f76636b3ff9e2ae58c9a"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.4"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 [[deps.JuliaInterpreter]]
 deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
 git-tree-sha1 = "2984284a8abcfcc4784d95a9e2ea4e352dd8ede7"
 uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
 version = "0.9.36"
 
-=======
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-[[deps.JuliaInterpreter]]
-deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
-git-tree-sha1 = "10da5154188682e5c0726823c2b5125957ec3778"
-uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
-version = "0.9.38"
-
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 [[deps.KernelAbstractions]]
 deps = ["Adapt", "Atomix", "InteractiveUtils", "MacroTools", "PrecompileTools", "Requires", "StaticArrays", "UUIDs", "UnsafeAtomics", "UnsafeAtomicsLLVM"]
 git-tree-sha1 = "e73a077abc7fe798fe940deabe30ef6c66bdde52"
@@ -320,32 +256,17 @@ version = "0.9.29"
 
 [[deps.LFTSampling]]
 deps = ["BDIO", "DelimitedFiles", "Distributions", "Git", "LinearAlgebra", "Random"]
-<<<<<<< HEAD
 git-tree-sha1 = "94a26d43405a711ecb9433f6e511b1caa5f10c09"
-=======
-git-tree-sha1 = "0b4628985828f5f0c4f3f04af28cde5d936e1649"
->>>>>>> 8ba68f0 (New implementation working. No memory consumption, slightly slower.)
 repo-rev = "main"
 repo-url = "https://github.com/dalbandea/LFTSampling.jl"
 uuid = "01beebb5-6b54-40b6-b312-fac6d2d10d07"
 version = "0.1.0"
 
 [[deps.LLVM]]
-<<<<<<< HEAD
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Unicode"]
 git-tree-sha1 = "d422dfd9707bec6617335dc2ea3c5172a87d5908"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
 version = "9.1.3"
-=======
-deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Requires", "Unicode"]
-git-tree-sha1 = "2470e69781ddd70b8878491233cd09bc1bd7fc96"
-uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-<<<<<<< HEAD
-version = "6.6.0"
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-version = "8.1.0"
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 
     [deps.LLVM.extensions]
     BFloat16sExt = "BFloat16s"
@@ -355,21 +276,9 @@ version = "8.1.0"
 
 [[deps.LLVMExtra_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "TOML"]
-<<<<<<< HEAD
-<<<<<<< HEAD
 git-tree-sha1 = "05a8bd5a42309a9ec82f700876903abce1017dd3"
 uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
 version = "0.0.34+0"
-=======
-git-tree-sha1 = "88b916503aac4fb7f701bb625cd84ca5dd1677bc"
-uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
-version = "0.0.29+0"
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-git-tree-sha1 = "597d1c758c9ae5d985ba4202386a607c675ee700"
-uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
-version = "0.0.31+0"
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 
 [[deps.LazilyInitializedFields]]
 git-tree-sha1 = "0f2da712350b020bc3957f269c9caad516383ee0"
@@ -423,9 +332,9 @@ version = "1.11.0"
 
 [[deps.LogExpFunctions]]
 deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "13ca9e2586b89836fd20cccf56e57e2b9ae7f38f"
+git-tree-sha1 = "a2d09619db4e765091ee5c6ffe8872849de0feea"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.29"
+version = "0.3.28"
 
     [deps.LogExpFunctions.extensions]
     LogExpFunctionsChainRulesCoreExt = "ChainRulesCore"
@@ -439,25 +348,13 @@ version = "0.3.29"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 version = "1.11.0"
 
 [[deps.LoweredCodeUtils]]
 deps = ["JuliaInterpreter"]
-<<<<<<< HEAD
 git-tree-sha1 = "260dc274c1bc2cb839e758588c63d9c8b5e639d1"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
 version = "3.0.5"
-=======
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-git-tree-sha1 = "688d6d9e098109051ae33d126fcfc88c4ce4a021"
-uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "3.1.0"
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
@@ -502,24 +399,10 @@ uuid = "49dea1ee-f6fa-5aa6-9a11-8816cee7d4b9"
 version = "1.0.0"
 
 [[deps.Nettle_jll]]
-<<<<<<< HEAD
-<<<<<<< HEAD
 deps = ["Artifacts", "GMP_jll", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "d67b4fddbd1b07888ed2680646a44740f492f1ca"
 uuid = "4c82536e-c426-54e4-b420-14f461c4ed8b"
 version = "3.9.1+0"
-=======
-deps = ["Artifacts", "GMP_jll", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "eca63e3847dad608cfa6a3329b95ef674c7160b4"
-uuid = "4c82536e-c426-54e4-b420-14f461c4ed8b"
-version = "3.7.2+0"
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-deps = ["Artifacts", "GMP_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "100c6e7877f7576648c4cbf3927ad227949aa327"
-uuid = "4c82536e-c426-54e4-b420-14f461c4ed8b"
-version = "3.10.0+1"
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
@@ -533,24 +416,24 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+4"
+version = "0.8.1+2"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "f58782a883ecbf9fb48dcd363f9ccd65f36c23a8"
+git-tree-sha1 = "7493f61f55a6cce7325f197443aa80d32554ba10"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.0.15+2"
+version = "3.0.15+1"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "418e63d434f5ca12b188bbb287dfbe10a5af1da4"
+git-tree-sha1 = "13652491f6856acfd2db29360e1bbcd4565d04f1"
 uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
-version = "0.5.5+1"
+version = "0.5.5+0"
 
 [[deps.OrderedCollections]]
-git-tree-sha1 = "12f1439c4f986bb868acda6ea33ebc78e19b95ad"
+git-tree-sha1 = "dfdf5519f235516220579f949664f1bf44e741c5"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.7.0"
+version = "1.6.3"
 
 [[deps.PCRE2_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -639,24 +522,12 @@ git-tree-sha1 = "838a3a4188e2ded87a4f9f184b4b0d78a1e91cb7"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.0"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 [[deps.Revise]]
 deps = ["CodeTracking", "Distributed", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
 git-tree-sha1 = "7f4228017b83c66bd6aa4fddeb170ce487e53bc7"
 uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
 version = "3.6.2"
 
-=======
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-[[deps.Revise]]
-deps = ["CodeTracking", "Distributed", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
-git-tree-sha1 = "6f6bd06b578763245e28aeea649e38fdf4b72e87"
-uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "3.6.5"
-
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
 git-tree-sha1 = "852bd0f55565a9e973fcfee83a84413270224dc4"
@@ -694,9 +565,9 @@ version = "1.11.0"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
-git-tree-sha1 = "64cca0c26b4f31ba18f13f6c12af7c85f478cfde"
+git-tree-sha1 = "2f5d4697f21388cbe1ff299430dd169ef97d7e14"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
-version = "2.5.0"
+version = "2.4.0"
 
     [deps.SpecialFunctions.extensions]
     SpecialFunctionsChainRulesCoreExt = "ChainRulesCore"
@@ -706,9 +577,9 @@ version = "2.5.0"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "47091a0340a675c738b1304b58161f3b0839d454"
+git-tree-sha1 = "777657803913ffc7e8cc20f0fd04b634f871af8f"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.10"
+version = "1.9.8"
 
     [deps.StaticArrays.extensions]
     StaticArraysChainRulesCoreExt = "ChainRulesCore"
@@ -740,10 +611,10 @@ uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
 version = "1.7.0"
 
 [[deps.StatsBase]]
-deps = ["AliasTables", "DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
-git-tree-sha1 = "29321314c920c26684834965ec2ce0dacc9cf8e5"
+deps = ["DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
+git-tree-sha1 = "5cf7606d6cef84b543b483848d4ae08ad9832b21"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
-version = "0.34.4"
+version = "0.34.3"
 
 [[deps.StatsFuns]]
 deps = ["HypergeometricFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
@@ -813,21 +684,9 @@ version = "0.2.1"
 
 [[deps.UnsafeAtomicsLLVM]]
 deps = ["LLVM", "UnsafeAtomics"]
-<<<<<<< HEAD
-<<<<<<< HEAD
 git-tree-sha1 = "2d17fabcd17e67d7625ce9c531fb9f40b7c42ce4"
 uuid = "d80eeb9a-aca5-4d75-85e5-170c8b632249"
 version = "0.2.1"
-=======
-git-tree-sha1 = "323e3d0acf5e78a56dfae7bd8928c989b4f3083e"
-uuid = "d80eeb9a-aca5-4d75-85e5-170c8b632249"
-version = "0.1.3"
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
-git-tree-sha1 = "bf2c553f25e954a9b38c9c0593a59bb13113f9e5"
-uuid = "d80eeb9a-aca5-4d75-85e5-170c8b632249"
-version = "0.1.5"
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
 
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
