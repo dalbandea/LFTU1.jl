@@ -22,21 +22,12 @@ CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 
 [extensions]
 LFTU1CUDAExt = "CUDA"
-<<<<<<< HEAD
-<<<<<<< HEAD
 
 [compat]
 Revise = "3.6.2"
-=======
->>>>>>> 9b869ca (Merged Gregor's changes so that correlators can be computed for non-square lattices)
-=======
 
 [compat]
 KernelAbstractions = "0.9.17"
 LFTSampling = "0.1.0"
 Revise = "3.6.5"
-<<<<<<< HEAD
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
-=======
 SparseArrays = "1.11.0"
->>>>>>> 8ba68f0 (New implementation working. No memory consumption, slightly slower.)
