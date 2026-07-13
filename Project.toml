@@ -24,9 +24,6 @@ CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 LFTU1CUDAExt = "CUDA"
 
 [compat]
-Revise = "3.6.2"
-
-[compat]
 KernelAbstractions = "0.9.17"
 LFTSampling = "0.1.0"
 Revise = "3.6.5"
