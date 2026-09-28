@@ -25,9 +25,10 @@ abstract type PeriodicBC <: AbstractBoundaryCondition end
 abstract type OpenBC <: AbstractBoundaryCondition end
 export PeriodicBC, OpenBC
 
-Base.@kwdef struct U1QuenchedParm{B <: AbstractBoundaryCondition} <: U1Parm
+# beta can be a Float64 or a truncated series (derivatives with respect to beta)
+Base.@kwdef struct U1QuenchedParm{B <: AbstractBoundaryCondition, T} <: U1Parm
     iL::Tuple{Int64,Int64}
-    beta::Float64
+    beta::T
     BC::Type{B}
 end
 export U1QuenchedParm
