@@ -33,9 +33,9 @@ Base.@kwdef struct U1QuenchedParm{B <: AbstractBoundaryCondition, T} <: U1Parm
 end
 export U1QuenchedParm
 
-Base.@kwdef struct U1Nf2Parm{B <: AbstractBoundaryCondition, T} <: U1Parm
+Base.@kwdef struct U1Nf2Parm{B <: AbstractBoundaryCondition, T, S} <: U1Parm
     iL::Tuple{Int64,Int64}
-    beta::Float64
+    beta::S
     am0::T
     BC::Type{B}
 end
