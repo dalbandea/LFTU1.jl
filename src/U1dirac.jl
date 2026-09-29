@@ -168,9 +168,16 @@ export Dwdag!
 # end
 
 
-function gamm5Dw_sqr_musq_am0_mu!(am0, mu)
-    return (x1, x2, x3, x4) -> gamm5Dw_sqr_musq!(x1, x2, x3, am0, mu, x4)
+# (gamma5 D)^2 + mu^2 at mass am0, as a callable struct rather than a closure, so that its
+# mass can be read (e.g. to build the same operator at the order-0 mass of a Series)
+struct ShiftedSqr{T, S} <: Function
+    am0::T
+    mu::S
 end
+(A::ShiftedSqr)(so, tmp, si, U1ws) = gamm5Dw_sqr_musq!(so, tmp, si, A.am0, A.mu, U1ws)
+export ShiftedSqr
+
+gamm5Dw_sqr_musq_am0_mu!(am0, mu) = ShiftedSqr(am0, mu)
 
 function gamm5Dw_sqr_musq!(so, tmp, si, am0, mu_j, U1ws::U1)
 

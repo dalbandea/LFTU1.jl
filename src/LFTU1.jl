@@ -41,10 +41,11 @@ Base.@kwdef struct U1Nf2Parm{B <: AbstractBoundaryCondition, T, S} <: U1Parm
 end
 export U1Nf2Parm
 
-Base.@kwdef struct U1NfParm{B <: AbstractBoundaryCondition} <: U1Parm
+# beta and the masses can be Float64 or truncated series (derivatives with respect to them)
+Base.@kwdef struct U1NfParm{B <: AbstractBoundaryCondition, T, S} <: U1Parm
     iL::Tuple{Int64,Int64}
-    beta::Float64
-    am0::Array{Float64}
+    beta::S
+    am0::Vector{T}
     BC::Type{B}
 end
 export U1NfParm

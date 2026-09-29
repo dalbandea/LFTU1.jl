@@ -191,8 +191,8 @@ function force!(U1ws::U1Nf, hmcws::AbstractHMC)
     am0 = U1ws.params.am0
     N_fermions = length(am0)
     rprm = U1ws.rprm
-    aux = similar(hmcws.X)
-    aux .= zero(U1ws.PRC)
+    aux = similar(hmcws.pfrc)                 # real, as the force
+    aux .= zero(eltype(aux))
 
     for j in 1:N_fermions
         for i in 1:rprm[j].n
