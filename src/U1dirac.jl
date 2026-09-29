@@ -211,7 +211,7 @@ function gamm5Dw_sqr_musq!(so, tmp, si, am0, mu_j, U1ws::U1)
     gamm5Dw!(so, si, am0, U1ws)
     tmp .= so
     gamm5Dw!(so, tmp, am0, U1ws)
-    so .= so .+ (mu_j)^2*si
+    so .= so .+ (mu_j)^2 .* si   # fused: no temporary array
     
     return nothing
 end
