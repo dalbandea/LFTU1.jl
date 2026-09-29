@@ -1,4 +1,28 @@
 
+# so = γ₅D si at site (i1, i2), given its neighbours (iu = up, id = down). Shared by the
+# KernelAbstractions kernel (GPU) and the plain CPU loop, so both compute the same expressions.
+@inline function g5D_site!(so, U, si, am0, i1, i2, iu1, iu2, id1, id2)
+    @inbounds begin
+        A = 0.5 * ( U[i1,i2,1] * (si[iu1,i2,1] - si[iu1,i2,2]) +
+                    conj(U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
+        B = 0.5 * ( U[i1,i2,2] * (si[i1,iu2,1] +
+                                  complex(-imag(si[i1,iu2,2]),real(si[i1,iu2,2]))) +
+                    conj(U[i1,id2,2])*(si[i1,id2,1] +
+                                        complex(imag(si[i1,id2,2]),-real(si[i1,id2,2]))) )
+        A2 = 0.5 * ( U[i1,i2,1] * (si[iu1,i2,1] - si[iu1,i2,2]) -
+                    conj(U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
+        B2 = 0.5 * ( U[i1,i2,2] * (-si[i1,iu2,2] +
+                                  complex(-imag(si[i1,iu2,1]),real(si[i1,iu2,1]))) -
+                    conj(U[i1,id2,2])*(si[i1,id2,2] +
+                                        complex(-imag(si[i1,id2,1]),real(si[i1,id2,1]))) )
+
+    
+        so[i1,i2,1] =  (2.0+am0) * si[i1,i2,1] - A - B
+        so[i1,i2,2] = -(2.0+am0) * si[i1,i2,2] - A2 - B2
+    end
+    return nothing
+end
+
 # Returns so = γ₅D si in-place.
 KernelAbstractions.@kernel function U1gamm5Dw!(so, U, si, am0, Nx, Ny)
 
@@ -10,31 +34,38 @@ KernelAbstractions.@kernel function U1gamm5Dw!(so, U, si, am0, Nx, Ny)
     id1 = mod1(i1-1, Nx)
     id2 = mod1(i2-1, Ny)
 
-    A = 0.5 * ( U[i1,i2,1] * (si[iu1,i2,1] - si[iu1,i2,2]) +
-                conj(U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
-    B = 0.5 * ( U[i1,i2,2] * (si[i1,iu2,1] +
-                              complex(-imag(si[i1,iu2,2]),real(si[i1,iu2,2]))) +
-                conj(U[i1,id2,2])*(si[i1,id2,1] +
-                                    complex(imag(si[i1,id2,2]),-real(si[i1,id2,2]))) )
-    A2 = 0.5 * ( U[i1,i2,1] * (si[iu1,i2,1] - si[iu1,i2,2]) -
-                conj(U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
-    B2 = 0.5 * ( U[i1,i2,2] * (-si[i1,iu2,2] +
-                              complex(-imag(si[i1,iu2,1]),real(si[i1,iu2,1]))) -
-                conj(U[i1,id2,2])*(si[i1,id2,2] +
-                                    complex(-imag(si[i1,id2,1]),real(si[i1,id2,1]))) )
+    g5D_site!(so, U, si, am0, i1, i2, iu1, iu2, id1, id2)
+end
 
-    
-    so[i1,i2,1] =  (2.0+am0) * si[i1,i2,1] - A - B
-    so[i1,i2,2] = -(2.0+am0) * si[i1,i2,2] - A2 - B2
-    
+# The same on the CPU as a plain loop: no index reconstruction from linear indices, no task
+# launches, no allocations (on small lattices these dominated the cost of the kernel).
+function U1gamm5Dw_cpu!(so, U, si, am0, Nx, Ny)
+    for i2 in 1:Ny
+        iu2 = ifelse(i2 == Ny, 1, i2 + 1)
+        id2 = ifelse(i2 == 1, Ny, i2 - 1)
+        for i1 in 1:Nx
+            iu1 = ifelse(i1 == Nx, 1, i1 + 1)
+            id1 = ifelse(i1 == 1, Nx, i1 - 1)
+            g5D_site!(so, U, si, am0, i1, i2, iu1, iu2, id1, id2)
+        end
+    end
+    return nothing
+end
+
+function U1gamm5Dw_dispatch!(so, U, si, am0, U1ws)
+    lp = U1ws.params
+    if U1ws.device isa KernelAbstractions.CPU
+        U1gamm5Dw_cpu!(so, U, si, am0, lp.iL[1], lp.iL[2])
+    else
+        U1gamm5Dw!(U1ws.device)(so, U, si, am0, lp.iL[1], lp.iL[2],
+                                ndrange=(lp.iL[1], lp.iL[2]), workgroupsize=U1ws.kprm.threads)
+        synchronize(U1ws.device)
+    end
+    return nothing
 end
 
 function gamm5Dw!(so, si, U1ws::U1Nf2)
-    lp = U1ws.params
-    event = U1gamm5Dw!(U1ws.device)(so, U1ws.U, si, lp.am0, lp.iL[1],
-                                  lp.iL[2], ndrange=(lp.iL[1], lp.iL[2]),
-                                  workgroupsize=U1ws.kprm.threads)
-    synchronize(U1ws.device)
+    U1gamm5Dw_dispatch!(so, U1ws.U, si, U1ws.params.am0, U1ws)
     return nothing
 end
 
@@ -51,11 +82,7 @@ function gamm5Dw_sqr_msq!(so, tmp, si, U1ws::U1Nf2)
 end
 
 function gamm5Dw!(so, si, am0, U1ws::Union{U1Nf,U1Quenched,U1Nf2})
-    lp = U1ws.params
-    event = U1gamm5Dw!(U1ws.device)(so, U1ws.U, si, am0, lp.iL[1],
-                                  lp.iL[2], ndrange=(lp.iL[1], lp.iL[2]),
-                                  workgroupsize=U1ws.kprm.threads)
-    synchronize(U1ws.device)
+    U1gamm5Dw_dispatch!(so, U1ws.U, si, am0, U1ws)
     return nothing
 end
 
