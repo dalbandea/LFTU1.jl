@@ -32,6 +32,8 @@ get_field(u1ws::LFTU1.U1) = u1ws.U
             include("u1nfcorrelatortest.jl")
         end
 
+        include("lftsamplingtests.jl")
+
         @testset verbose = true "U1 I/O" begin
             include("iotests.jl")
         end
