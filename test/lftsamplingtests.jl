@@ -8,7 +8,6 @@ using LFTU1
 LFTSampling.field_distance(a::LFTU1.U1, b::LFTU1.U1) = sum(abs2, a.U .- b.U)
 
 @testset verbose = true "LFTSampling test suite" begin
-    hmcp = HMC(integrator = Leapfrog(1.0, 20))
     for BC in (PeriodicBC, OpenBC)
         models = [
             U1Quenched(Float64, beta = 5.0, iL = (8, 8), BC = BC),
@@ -19,7 +18,7 @@ LFTSampling.field_distance(a::LFTU1.U1, b::LFTU1.U1) = sum(abs2, a.U .- b.U)
         ]
         for model in models
             LFTU1.randomize!(model)
-            LFTSampling.test_hmc(model, hmcp, name = "$(nameof(typeof(model))) $BC")
+            LFTSampling.test_hmc(model, name = "$(nameof(typeof(model))) $BC")
         end
     end
 end
