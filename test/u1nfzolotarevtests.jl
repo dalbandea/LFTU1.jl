@@ -18,7 +18,7 @@ let
                  r_as = r_as,
                  r_bs = r_bs,
                  maxiter = 100000,
-                 tol = 1e-200
+                 tol = 1e-26
                 )
     LFTU1.randomize!(model)
     lambda_min, lambda_max = power_method(model, masses[1], iter=10000)
