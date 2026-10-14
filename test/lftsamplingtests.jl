@@ -15,10 +15,16 @@ LFTSampling.field_distance(a::LFTU1.U1, b::LFTU1.U1) = sum(abs2, a.U .- b.U)
             U1Nf(Float64, beta = 5.0, iL = (8, 8), am0 = [0.6, 0.3], BC = BC,
                  ns_rat = [3, 5], r_as = [sqrt(0.45), sqrt(0.45)],
                  r_bs = [sqrt(22), sqrt(22)]),
+            U1Nf2(Float64, beta = 5.0, iL = (8, 8), am0 = 0.2, BC = BC, csw = 1.0),
+            U1Nf(Float64, beta = 5.0, iL = (8, 8), am0 = [0.6, 0.3], BC = BC, csw = 1.0,
+                 ns_rat = [3, 5], r_as = [sqrt(0.45), sqrt(0.45)],
+                 r_bs = [sqrt(22), sqrt(22)]),
         ]
         for model in models
             LFTU1.randomize!(model)
-            LFTSampling.test_hmc(model, name = "$(nameof(typeof(model))) $BC")
+            csw = LFTU1.clover_csw(model.params)
+            LFTSampling.test_hmc(model, name = "$(nameof(typeof(model))) $BC" *
+                                 (iszero(csw) ? "" : " csw=$csw"))
         end
     end
 end
