@@ -76,9 +76,9 @@ function winding_step!(Lw::Int64, U1ws::U1, samplerws::AbstractHMC)
 
     ds = sfin - sini
 
-    LFTSampling.metropolis_accept_reject!(U1ws, ws_cp, ds)
+    acc = LFTSampling.metropolis_accept_reject!(U1ws, ws_cp, ds)
 
-    return nothing
+    return acc
 end
 
 
@@ -86,10 +86,11 @@ function sample!(U1ws::U1, samplerws::AbstractHMC; N_windings = 0, Lw = 0)
     @info("- HMC step")
     hmc!(U1ws, samplerws)
     @info("- $N_windings winding steps")
+    acc = 0
     for i in 1:N_windings
-        winding_step!(Lw, U1ws, samplerws)
+        acc += winding_step!(Lw, U1ws, samplerws)
     end
-    return nothing
+    return acc
 end
 
 # ======================= #
