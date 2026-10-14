@@ -33,22 +33,29 @@ Base.@kwdef struct U1QuenchedParm{B <: AbstractBoundaryCondition, T} <: U1Parm
 end
 export U1QuenchedParm
 
-Base.@kwdef struct U1Nf2Parm{B <: AbstractBoundaryCondition, T, S} <: U1Parm
+# csw: coefficient of the Sheikholeslami-Wohlert (clover) term; 0 is the Wilson action
+Base.@kwdef struct U1Nf2Parm{B <: AbstractBoundaryCondition, T, S, C} <: U1Parm
     iL::Tuple{Int64,Int64}
     beta::S
     am0::T
     BC::Type{B}
+    csw::C = 0.0
 end
 export U1Nf2Parm
 
 # beta and the masses can be Float64 or truncated series (derivatives with respect to them)
-Base.@kwdef struct U1NfParm{B <: AbstractBoundaryCondition, T, S} <: U1Parm
+Base.@kwdef struct U1NfParm{B <: AbstractBoundaryCondition, T, S, C} <: U1Parm
     iL::Tuple{Int64,Int64}
     beta::S
     am0::Vector{T}
     BC::Type{B}
+    csw::C = 0.0
 end
 export U1NfParm
+
+# No fermions in the quenched theory: valence quarks on quenched configurations are Wilson
+clover_csw(lp::U1QuenchedParm) = 0.0
+clover_csw(lp::U1Parm) = lp.csw
 
 struct KernelParm
     threads::Tuple{Int64,Int64}

@@ -148,7 +148,7 @@ end
 function pf_force!(U1ws::Union{U1Nf2,U1Nf}, hmcws::AbstractHMC)
     lp = U1ws.params
     event = U1_tr_dQwdU!(U1ws.device)(hmcws.pfrc, U1ws.U, hmcws.X, hmcws.g5DX,
-                                    lp.iL[1], lp.iL[2], 
+                                    clover_csw(lp), lp.iL[1], lp.iL[2], 
                                     ndrange=(lp.iL[1], lp.iL[2]),
                                     workgroupsize=U1ws.kprm.threads)
     synchronize(U1ws.device)

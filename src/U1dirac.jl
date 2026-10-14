@@ -1,7 +1,25 @@
 
+# Conventions: γ₁ = σˣ, γ₂ = σʸ, γ₅ = σᶻ = -iγ₁γ₂ (read off the hopping terms below), and
+#   D = (2+am0) - ½ Σ_μ [ U_μ(x)(1-γ_μ)ψ(x+μ) + U_μ(x-μ)†(1+γ_μ)ψ(x-μ) ].
+#
+# Sheikholeslami-Wohlert (clover) term. With U = exp(iaA), the tree-level improved operator is
+# γ·D - (a/2)(γ·D)², and the Wilson term only gives the -(a/2)D² part of (γ·D)². The rest is
+#   -(a/8) Σ_μν [γ_μ,γ_ν][D_μ,D_ν] = (a/2) γ₅ F₁₂     (2D, [D_μ,D_ν] = iF_μν),
+# so D_sw = D + (csw/2) γ₅ F̂(x), and γ₅D_sw = γ₅D + (csw/2) F̂(x) on both spin components.
+# F̂(x) = ¼ Im Σ (the four plaquettes with a corner at x), the clover average of a²F₁₂.
+
+# Plaquette with lower-left corner (j1, j2), and (ju1, ju2) the next sites in each direction
+@inline plaquette(U, j1, j2, ju1, ju2) =
+    @inbounds U[j1,j2,1] * U[ju1,j2,2] * conj(U[j1,ju2,1] * U[j1,j2,2])
+
+# F̂ at site (i1, i2): plaquettes at x, x-1̂, x-2̂ and x-1̂-2̂
+@inline clover_field(U, i1, i2, iu1, iu2, id1, id2) =
+    0.25 * imag( plaquette(U, i1,  i2,  iu1, iu2) + plaquette(U, id1, i2,  i1, iu2) +
+                 plaquette(U, i1,  id2, iu1, i2 ) + plaquette(U, id1, id2, i1, i2 ) )
+
 # so = γ₅D si at site (i1, i2), given its neighbours (iu = up, id = down). Shared by the
 # KernelAbstractions kernel (GPU) and the plain CPU loop, so both compute the same expressions.
-@inline function g5D_site!(so, U, si, am0, i1, i2, iu1, iu2, id1, id2)
+@inline function g5D_site!(so, U, si, am0, csw, i1, i2, iu1, iu2, id1, id2)
     @inbounds begin
         A = 0.5 * ( U[i1,i2,1] * (si[iu1,i2,1] - si[iu1,i2,2]) +
                     conj(U[id1,i2,1])*(si[id1,i2,1] + si[id1,i2,2]) )
@@ -19,12 +37,18 @@
     
         so[i1,i2,1] =  (2.0+am0) * si[i1,i2,1] - A - B
         so[i1,i2,2] = -(2.0+am0) * si[i1,i2,2] - A2 - B2
+
+        if !iszero(csw)
+            cF = 0.5 * csw * clover_field(U, i1, i2, iu1, iu2, id1, id2)
+            so[i1,i2,1] += cF * si[i1,i2,1]
+            so[i1,i2,2] += cF * si[i1,i2,2]
+        end
     end
     return nothing
 end
 
 # Returns so = γ₅D si in-place.
-KernelAbstractions.@kernel function U1gamm5Dw!(so, U, si, am0, Nx, Ny)
+KernelAbstractions.@kernel function U1gamm5Dw!(so, U, si, am0, csw, Nx, Ny)
 
     i1, i2 = @index(Global, NTuple)
 
@@ -34,19 +58,19 @@ KernelAbstractions.@kernel function U1gamm5Dw!(so, U, si, am0, Nx, Ny)
     id1 = mod1(i1-1, Nx)
     id2 = mod1(i2-1, Ny)
 
-    g5D_site!(so, U, si, am0, i1, i2, iu1, iu2, id1, id2)
+    g5D_site!(so, U, si, am0, csw, i1, i2, iu1, iu2, id1, id2)
 end
 
 # The same on the CPU as a plain loop: no index reconstruction from linear indices, no task
 # launches, no allocations (on small lattices these dominated the cost of the kernel).
-function U1gamm5Dw_cpu!(so, U, si, am0, Nx, Ny)
+function U1gamm5Dw_cpu!(so, U, si, am0, csw, Nx, Ny)
     for i2 in 1:Ny
         iu2 = ifelse(i2 == Ny, 1, i2 + 1)
         id2 = ifelse(i2 == 1, Ny, i2 - 1)
         for i1 in 1:Nx
             iu1 = ifelse(i1 == Nx, 1, i1 + 1)
             id1 = ifelse(i1 == 1, Nx, i1 - 1)
-            g5D_site!(so, U, si, am0, i1, i2, iu1, iu2, id1, id2)
+            g5D_site!(so, U, si, am0, csw, i1, i2, iu1, iu2, id1, id2)
         end
     end
     return nothing
@@ -54,10 +78,11 @@ end
 
 function U1gamm5Dw_dispatch!(so, U, si, am0, U1ws)
     lp = U1ws.params
+    csw = clover_csw(lp)
     if U1ws.device isa KernelAbstractions.CPU
-        U1gamm5Dw_cpu!(so, U, si, am0, lp.iL[1], lp.iL[2])
+        U1gamm5Dw_cpu!(so, U, si, am0, csw, lp.iL[1], lp.iL[2])
     else
-        U1gamm5Dw!(U1ws.device)(so, U, si, am0, lp.iL[1], lp.iL[2],
+        U1gamm5Dw!(U1ws.device)(so, U, si, am0, csw, lp.iL[1], lp.iL[2],
                                 ndrange=(lp.iL[1], lp.iL[2]), workgroupsize=U1ws.kprm.threads)
         synchronize(U1ws.device)
     end
@@ -291,7 +316,34 @@ end
 # end
 
 
-KernelAbstractions.@kernel function U1_tr_dQwdU!(frc, U, X, g5DwX, Nx, Ny)
+# Re Σ_s X̄(y,s) Y(y,s) at site y: the clover term of Q = γ₅D is diagonal in spin
+@inline spin_dot(X, Y, j1, j2) =
+    @inbounds real(conj(X[j1,j2,1])*Y[j1,j2,1] + conj(X[j1,j2,2])*Y[j1,j2,2])
+
+# Clover part of frc = -dS/dω for S = Re ⟨X, ...⟩, with -dS/dω_μ(z) = 2 Re[(QX)† ∂_ω Q X] and
+# ∂_ω Q = (csw/2) ∂_ω F̂. Each plaquette p enters with weight w_p = Σ_(corners y) spin_dot(y),
+# and ∂_ω Im P = ±Re P: + for U₁(p), U₂(p+1̂), - for U₁(p+2̂), U₂(p). Gathered per link, so
+# every thread writes only its own site.
+@inline function clover_force_site(U, X, Y, csw, i1, i2, iu1, iu2, id1, id2)
+    @inbounds begin
+        s00 = spin_dot(X, Y, i1,  i2 )
+        s10 = spin_dot(X, Y, iu1, i2 )
+        s01 = spin_dot(X, Y, i1,  iu2)
+        w_z  = s00 + s10 + s01 + spin_dot(X, Y, iu1, iu2)                     # plaquette at z
+        w_z2 = spin_dot(X, Y, i1, id2) + spin_dot(X, Y, iu1, id2) + s00 + s10  # at z-2̂
+        w_z1 = spin_dot(X, Y, id1, i2) + s00 + spin_dot(X, Y, id1, iu2) + s01  # at z-1̂
+
+        RP_z  = real(plaquette(U, i1,  i2,  iu1, iu2))
+        RP_z2 = real(plaquette(U, i1,  id2, iu1, i2 ))
+        RP_z1 = real(plaquette(U, id1, i2,  i1,  iu2))
+
+        f1 = 0.25 * csw * (w_z * RP_z  - w_z2 * RP_z2)
+        f2 = 0.25 * csw * (w_z1 * RP_z1 - w_z * RP_z )
+    end
+    return f1, f2
+end
+
+KernelAbstractions.@kernel function U1_tr_dQwdU!(frc, U, X, g5DwX, csw, Nx, Ny)
 
     i1, i2 = @index(Global, NTuple)
 
@@ -315,5 +367,13 @@ KernelAbstractions.@kernel function U1_tr_dQwdU!(frc, U, X, g5DwX, Nx, Ny)
     
     frc[i1,i2,1] = real((1im)*z1)
     frc[i1,i2,2] = real((1im)*z2)
+
+    if !iszero(csw)
+        id1 = mod1(i1-1, Nx)
+        id2 = mod1(i2-1, Ny)
+        f1, f2 = clover_force_site(U, X, g5DwX, csw, i1, i2, iu1, iu2, id1, id2)
+        frc[i1,i2,1] += f1
+        frc[i1,i2,2] += f2
+    end
 
 end
