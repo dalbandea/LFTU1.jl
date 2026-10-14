@@ -1,7 +1,7 @@
 name = "LFTU1"
 uuid = "c5346ad7-8abe-4d7d-905f-653b6e0abc8c"
-authors = ["dalbandea <albandeadavid@gmail.com>"]
 version = "0.1.0"
+authors = ["dalbandea <albandeadavid@gmail.com>"]
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -24,6 +24,8 @@ CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 LFTU1CUDAExt = "CUDA"
 
 [compat]
+BDIO = "0.1.0"
 KernelAbstractions = "0.9.17"
 LFTSampling = "0.1.0"
 Revise = "3.6.5"
+julia = "1.10"
