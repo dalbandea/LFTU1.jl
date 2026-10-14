@@ -139,4 +139,29 @@ let
 
     rm(fname, force=true)
 
+
+    # Clover ensembles: csw is stored in the header and read back
+    fname = "qriotest.bdio"
+    for model in (U1Nf2(Float64, beta = 5.0, am0 = 0.2, iL = (8, 10), BC = PeriodicBC, csw = 1.0),
+                  U1Nf(Float64, beta = 5.0, am0 = [0.2, 0.3], iL = (8, 10), BC = PeriodicBC,
+                       csw = 0.75))
+        isfile(fname) && error("File already exists!")
+        ens = [deepcopy(model) for i in 1:3]
+        for i in 1:length(ens)
+            LFTU1.randomize!(ens[i])
+            save_cnfg(fname, ens[i])
+        end
+        T = model isa LFTU1.U1Nf2 ? U1Nf2 : U1Nf
+        rens = LFTSampling.read_ensemble(fname, T)
+        @testset "$(nameof(T)) clover" begin
+            for i in 1:length(ens)
+                @test rens[i].params.csw == model.params.csw
+                @test rens[i].params.am0 == model.params.am0
+                @test rens[i].params.iL == model.params.iL
+                @test ens[i].U == rens[i].U
+            end
+        end
+        rm(fname, force=true)
+    end
+
 end

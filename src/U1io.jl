@@ -23,6 +23,21 @@ function BDIO.BDIO_read(fb::BDIO.BDIOstream, u1ws::U1)
 end
 
 
+# The clover coefficient goes at the end of the header record, and only when it is nonzero: Wilson
+# files are unchanged, and older readers (which read the header from the start) still read them.
+function save_csw!(fb::BDIO.BDIOstream, u1ws::Union{U1Nf2,U1Nf})
+    iszero(u1ws.params.csw) || BDIO.BDIO_write!(fb, [u1ws.params.csw])
+    return nothing
+end
+
+# csw from a header record of `len` bytes: present only if the record is longer than the Wilson one
+function read_csw(fb::BDIO.BDIOstream, len_wilson)
+    BDIO.BDIO_get_len(fb) > len_wilson || return 0.0
+    ifoo = Vector{Float64}(undef, 1)
+    BDIO.BDIO_read(fb, ifoo)
+    return ifoo[1]
+end
+
 function save_cnfg_header(fb::BDIO.BDIOstream, u1ws::U1Quenched)
     if u1ws.params.BC == PeriodicBC
         BC = 0
@@ -48,6 +63,7 @@ function save_cnfg_header(fb::BDIO.BDIOstream, u1ws::U1Nf2)
     BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[1])])
     BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[2])])
     BDIO.BDIO_write!(fb, [convert(Int32, BC)])
+    save_csw!(fb, u1ws)
     BDIO.BDIO_write_hash!(fb)
     return nothing
 end
@@ -96,6 +112,8 @@ end
 Versions:
 - 0.1: Square lattice only, lsize2 = lsize1
 - 0.2: Rectangular lattice
+
+In both, a header with a trailing Float64 is a clover ensemble, and that value is csw.
 """
 function read_cnfg_info(fname::String, ::Type{U1Nf2}; v = "0.2")
 
@@ -129,11 +147,14 @@ function read_cnfg_info(fname::String, ::Type{U1Nf2}; v = "0.2")
         BCt = OpenBC
     end
 
+    csw = read_csw(fb, 2*8 + 3*4)
+
     model = U1Nf2(Float64,
                        beta = beta,
                        am0 = mass,
                        iL = (lsize1, lsize2),
                        BC = BCt,
+                       csw = csw,
                       )
 
     return fb, model
@@ -151,6 +172,7 @@ function save_cnfg_header(fb::BDIO.BDIOstream, u1ws::U1Nf)
     BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[1])])
     BDIO.BDIO_write!(fb, [convert(Int32, u1ws.params.iL[2])])
     BDIO.BDIO_write!(fb, [convert(Int32, BC)])
+    save_csw!(fb, u1ws)
     BDIO.BDIO_write_hash!(fb)
     return nothing
 end
@@ -183,11 +205,14 @@ function read_cnfg_info(fname::String, ::Type{U1Nf})
         BCt = OpenBC
     end
 
+    csw = read_csw(fb, 8 + 4 + 8*N_fermions + 3*4)
+
     model = U1Nf(Float64,
                        beta = beta,
                        am0 = masses,
                        iL = (lsize1, lsize2),
                        BC = BCt,
+                       csw = csw,
                       )
 
     return fb, model
