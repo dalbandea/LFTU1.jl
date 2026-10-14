@@ -179,6 +179,7 @@ struct U1exCorrelator <: LFTU1.AbstractU1Correlator
         filepath = joinpath(wdir, mesdir, ID*wdir_sufix*extension)
         V = prod((u1ws.params.iL..., 2))
         gD = LFTU1.to_device(u1ws.device, SparseArrays.sparse([], [], complex(typeof(u1ws.U[1]))[], V, V))
+        # gD = LFTU1.to_device(u1ws.device, zeros(complex(typeof(u1ws.U[1])), V, V))
         invgD1 = Nothing
         invgD2 = Nothing
         e1 = LFTU1.to_device(u1ws.device, zeros(complex(typeof(u1ws.U[1])), lp.iL..., 2))
@@ -248,12 +249,13 @@ function construct_D!(corrws, u1ws::Union{U1Quenched,U1Nf2,U1Nf}, mass)
     x1 .= 0.0
     x2 .= 0.0
     lsize = u1ws.params.iL[1]
-    for is in 1:2, il2 in 1:lsize, il1 in 1:lsize
-        ilinidx = linear_index(il1, il2, is, lsize, 2)
+    tsize = u1ws.params.iL[2]
+    for is in 1:2, il2 in 1:tsize, il1 in 1:lsize
+        ilinidx = linear_index(il1, il2, is, lsize, tsize, 2)
         x1[ilinidx] = 1.0
         Dw!(x2, x1, mass, u1ws)
-        for js in 1:2, jl2 in 1:lsize, jl1 in 1:lsize
-            jlinidx = linear_index(jl1, jl2, js, lsize, 2)
+        for js in 1:2, jl2 in 1:tsize, jl1 in 1:lsize
+            jlinidx = linear_index(jl1, jl2, js, lsize, tsize, 2)
             gD[jlinidx,ilinidx] = x2[jlinidx]
         end
         x1[ilinidx] = 0.0
