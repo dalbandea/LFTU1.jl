@@ -31,13 +31,25 @@ using LFTU1
 using Dates
 using Logging
 
-<<<<<<< HEAD
-function create_simulation_directory(wdir::String, u1ws::U1Nf2; replica::Int64)
+# Two layouts for the output, chosen by the infile:
+# - with "savename": flat, configurations in wdir/savename.bdio, log in wdir/savename_log.txt;
+# - without it: wdir/<run name>_D<date>/<replica>-r<replica>/<run name>-r<replica>.bdio, log next to
+#   the configurations; replica > 0 adds a replica to an existing run directory wdir.
+function create_simulation_directory(wdir::String, u1ws::U1Nf2; replica::Int64 = 0,
+                                     savename = nothing)
+    if savename !== nothing
+        mkpath(wdir)
+        return joinpath(wdir, savename*".bdio")
+    end
+
     dt = Dates.now()
+    L, T = u1ws.params.iL
+    lstr = L == T ? "L$(L)" : "L$(L)-T$(T)"
+    cstr = iszero(u1ws.params.csw) ? "" : "-csw$(u1ws.params.csw)"
 
     if replica == 0
         wdir_sufix = "_D"*Dates.format(dt, "yyyy-mm-dd-HH-MM-SS.ss")
-        fname = "Nf2sim-b$(u1ws.params.beta)-L$(model.params.iL[1])-m$(u1ws.params.am0)"*wdir_sufix
+        fname = "Nf2sim-b$(u1ws.params.beta)-$(lstr)-m$(u1ws.params.am0)$(cstr)"*wdir_sufix
         fdir = joinpath(wdir, fname, "$(replica)-r$(replica)")
         configfile = joinpath(fdir, fname*"-r$(lpad(replica,3,'0')).bdio")
     elseif replica > 0
@@ -52,20 +64,7 @@ function create_simulation_directory(wdir::String, u1ws::U1Nf2; replica::Int64)
 
     mkpath(fdir)
     cp(infile, joinpath(fdir,splitpath(infile)[end]))
-=======
-function create_simulation_directory(wdir::String, savename::String, u1ws::U1Nf2)
-#     dt = Dates.now()
-#     wdir_sufix = "_D"*Dates.format(dt, "yyyy-mm-dd-HH-MM-SS.ss")
-#     fname = savename*"_Nf2sim-b$(u1ws.params.beta)-L$(model.params.iL[1])-T$(model.params.iL[2])-m$(u1ws.params.am0)"
-#     fname = joinpath(savename, fname)
-#     fdir = joinpath(wdir, fname)
-    fname = savename*".bdio"
-    configfile = joinpath(wdir, fname)
-    mkpath(wdir)
-#     cp(infile, joinpath(wdir,splitpath(infile)[end]))
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
     return configfile
-#     return wdir*".bdio"
 end
 
 # Read model parameters
@@ -73,7 +72,8 @@ end
 beta = pdata["Model params"]["beta"]
 mass = pdata["Model params"]["mass"]
 lsize = pdata["Model params"]["L"]
-tsize = pdata["Model params"]["T"]
+tsize = get(pdata["Model params"], "T", lsize)        # optional: square lattice by default
+csw = get(pdata["Model params"], "csw", 0.0)          # optional: Wilson by default
 BC = eval(Meta.parse(pdata["Model params"]["BC"]))
 
 # Read HMC parameters
@@ -84,33 +84,24 @@ ntherm = pdata["HMC params"]["ntherm"]
 ntraj = pdata["HMC params"]["ntraj"]
 discard = pdata["HMC params"]["discard"]
 integrator = eval(Meta.parse(pdata["HMC params"]["integrator"]))
-N_windings = pdata["HMC params"]["windings"]
-Lw = pdata["HMC params"]["Lw"]
+N_windings = get(pdata["HMC params"], "windings", 0)  # optional: no winding steps by default
+Lw = get(pdata["HMC params"], "Lw", 0)
 
 # Working directory
 
 wdir = pdata["Working directory"]["wdir"]
-<<<<<<< HEAD
-replica = pdata["Working directory"]["replica"]
-=======
-savename = pdata["Working directory"]["savename"]
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
+replica = get(pdata["Working directory"], "replica", 0)
+savename = get(pdata["Working directory"], "savename", nothing)
 cntinue = pdata["Working directory"]["continue"]
 cntfile = pdata["Working directory"]["cntfile"]
 
 
 model = U1Nf2(
-<<<<<<< HEAD
               Float64,
               beta = beta,
               am0 = mass,
-              iL = (lsize, lsize),
-=======
-              Float64, 
-              beta = beta, 
-              am0 = mass, 
               iL = (lsize, tsize),
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
+              csw = csw,
               BC = PeriodicBC,
               device = device,
              )
@@ -129,14 +120,12 @@ if cntinue == true
 else
     @info "Creating simulation directory"
     ncfgs = 0
-<<<<<<< HEAD
-    configfile = create_simulation_directory(wdir, model, replica = replica)
-=======
-    configfile = create_simulation_directory(wdir, savename, model)
->>>>>>> e46765f (Added a variable to specify path to save measurements. Fixed signs to match chosen convention.)
+    configfile = create_simulation_directory(wdir, model, replica = replica, savename = savename)
 end
 
-logio = open(wdir*"/"*savename*"_log.txt", "a+")
+logfile = savename === nothing ? joinpath(dirname(configfile), "log.txt") :
+                                 joinpath(wdir, savename*"_log.txt")
+logio = open(logfile, "a+")
 logger = SimpleLogger(logio)
 global_logger(logger)
 
